@@ -1,0 +1,89 @@
+# Sensitive
+.env
+.git-credentials
+.gitconfig
+.secret_keys
+.ssh/
+.shell_key_guard.sh
+.selected_editor
+.mcp.json
+.opencode-web-password
+
+# OS / user dirs (some are broken symlinks)
+Desktop
+Documents
+Downloads
+Music
+Pictures
+Public
+Templates
+Videos
+
+# Caches
+.cache/
+.bun/
+.npm/
+.ollama/
+.dspy_cache/
+.llama-app/
+.local/
+.mem0/
+.mempalace/
+.qwen/
+
+# Tool configs
+.claude/
+.claude.json
+.codeium/
+.codex/
+.config/
+.continue/
+.cursor/
+.gemini/
+.hermes/
+.omniroute/
+.openclaude.json
+.openclaude/
+.openclaw/
+.opencode/
+.playwright-mcp/
+.relay-ai/
+.strix/
+.agents/
+.codeium/
+.lesshst
+.wget-hsts
+.profile
+.bash_history
+.bashrc
+.docker/
+.cloudflared/
+
+# Python
+__pycache__/
+*.pyc
+bot_venv/
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# Rust
+target/
+
+# Logs
+*.log
+
+# Build artifacts
+dist/
+build/
+*.crt
+*.pem
+
+# Snap
+snap/
+
+# Backups
+last30days-v3.3.2-backup/
+backups/
