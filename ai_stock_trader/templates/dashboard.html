@@ -7,8 +7,33 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@2.0.2/build/global/luxon.min.js"></script>
+    <style>
+      /* ---- tier-7 polish (parity with mobile) ---- */
+      :root{ --blue:#60a5fa; --green:#00e676; --red:#ff3b5c; --ang:0deg; }
+      @property --ang{ syntax:'<angle>'; initial-value:0deg; inherits:false; }
+      /* cursor-follow glow */
+      #cursorGlow{ position:fixed; width:480px; height:480px; border-radius:50%; pointer-events:none; z-index:0; left:0; top:0; transform:translate(-50%,-50%); background:radial-gradient(circle,rgba(96,165,250,.07),transparent 65%); opacity:0; transition:opacity .4s; }
+      body:hover #cursorGlow{ opacity:1; }
+      /* breathing panel glow on cards/sections */
+      .bg-gray-800{ position:relative; transition:box-shadow .35s, transform .35s, border-color .35s; }
+      section.bg-gray-800, .grid .bg-gray-800, #statusBadge{ animation:panelBreathe 7s ease-in-out infinite; }
+      @keyframes panelBreathe{ 0%,100%{box-shadow:0 0 0 rgba(96,165,250,0)} 50%{box-shadow:0 0 22px rgba(96,165,250,.10)} }
+      .bg-gray-800:hover{ transform:translateY(-2px); border-color:rgba(96,165,250,.4); box-shadow:0 8px 30px rgba(0,0,0,.4), 0 0 26px rgba(96,165,250,.16); }
+      /* gradient title shimmer */
+      h1.text-blue-400{ background:linear-gradient(90deg,#60a5fa,#00e676,#60a5fa); background-size:200% 100%; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:titleShimmer 5s linear infinite; }
+      @keyframes titleShimmer{ to{ background-position:200% 0; } }
+      /* metric count-up flash */
+      .metric.flash{ animation:metricFlash .5s ease-out; }
+      @keyframes metricFlash{ 0%{ filter:brightness(1.7); } 100%{ filter:brightness(1); } }
+      /* equity drawdown tint (segment) handled in JS */
+      /* underline sweep on section headers */
+      section h2.text-blue-400{ position:relative; }
+      section h2.text-blue-400::after{ content:""; position:absolute; left:0; bottom:-4px; width:0; height:2px; border-radius:2px; background:linear-gradient(90deg,var(--blue),var(--green)); transition:width .5s; }
+      section h2.text-blue-400:hover::after{ width:100%; }
+    </style>
 </head>
 <body class="bg-slate-950 text-gray-100 min-h-screen flex flex-col">
+    <div id="cursorGlow"></div>
     <div class="flex-1 overflow-y-auto p-4">
         <header class="mb-6">
             <div class="flex justify-between items-center flex-wrap">
@@ -227,13 +252,14 @@
                 const pnl = portfolioValue - 100;
                 
                 // Update metrics
-                metrics[0].textContent = `$${portfolioValue.toFixed(2)}`;
-                metrics[1].textContent = `$${availableCash.toFixed(2)}`;
-                metrics[2].textContent = `${position ? parseInt(position) : '0'} shares`;
+                metrics[0].textContent = `$${portfolioValue.toFixed(2)}`; flashMetric(metrics[0],'port');
+                metrics[1].textContent = `$${availableCash.toFixed(2)}`; flashMetric(metrics[1],'cash');
+                metrics[2].textContent = `${position ? parseInt(position) : '0'} shares`; flashMetric(metrics[2],'pos');
                 
                 const pnlPct = portfolioValue > 0 ? (pnl / portfolioValue * 100) : 0;
                 metrics[3].textContent = `$${pnl.toFixed(2)} (${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)`;
                 metrics[3].className = `metric text-2xl font-bold text-white ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`;
+                flashMetric(metrics[3],'pnl');
                 
                 // Trades
                 const trades = tradesData.trades || tradesData || [];
@@ -241,7 +267,7 @@
                 const winRateEl = document.querySelectorAll('.metric')[5]; // Win Rate
                 const avgTradeSizeEl = document.querySelectorAll('.metric')[6]; // Avg Trade Size
                 
-                tradesCountEl.textContent = trades.length || 0;
+                tradesCountEl.textContent = trades.length || 0; flashMetric(tradesCountEl,'count');
                 
                 // Calculate win rate from trades
                 let winRate = 0;
@@ -251,11 +277,13 @@
                 }
                 winRateEl.textContent = winRate.toFixed(2);
                 winRateEl.className = `metric text-2xl font-bold text-white ${winRate >= 50 ? 'text-green-400' : 'text-red-400'}`;
+                flashMetric(winRateEl,'wr');
                 
                 // Average trade size
                 const avgSize = trades.length > 0 ? 
                     trades.reduce((sum, t) => sum + (t.size || 0), 0) / trades.length : 0;
                 avgTradeSizeEl.textContent = avgSize.toFixed(4);
+                flashMetric(avgTradeSizeEl,'avg');
                 
                 // Last update
                 const lastUpdateEl = document.getElementById('lastUpdate');
@@ -372,14 +400,17 @@
                     labels, 
                     datasets: [{ 
                         label: 'Equity', 
-                        data: values, 
-                        borderColor: '#60a5fa', 
+                        data: values,
+                        borderColor: '#60a5fa',
                         backgroundColor: 'rgba(96,165,250,0.15)',
                         tension: 0.3,
                         pointRadius: 0,
                         pointHoverRadius: 5,
                         borderWidth: 2,
-                        fill: true
+                        fill: true,
+                        segment: {
+                            borderColor: ctx => (ctx.p1DataIndex > 0 && values[ctx.p1DataIndex] < values[ctx.p1DataIndex-1]) ? '#ff3b5c' : '#60a5fa'
+                        }
                     }] 
                 },
                 options: { 
@@ -544,6 +575,21 @@
             '1M': document.getElementById('chartTimeframe1M'),
             'ALL': document.getElementById('chartTimeframeALL')
         };
+
+        // ---- tier-7 polish: metric flash + cursor glow ----
+        const _lastMetric = {};
+        function flashMetric(el, key){
+            if(!el) return;
+            if(_lastMetric[key] !== undefined && el.textContent !== _lastMetric[key]){
+                el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+            }
+            _lastMetric[key] = el.textContent;
+        }
+        (function(){
+            const cg = document.getElementById('cursorGlow');
+            if(!cg) return;
+            window.addEventListener('mousemove', e=>{ cg.style.left = e.clientX+'px'; cg.style.top = e.clientY+'px'; });
+        })();
 
         async function initialize() {
             loadStats();
