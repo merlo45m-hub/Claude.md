@@ -118,6 +118,9 @@ if('serviceWorker' in navigator){
   .wl-price { text-align:right; }
   .wl-price .p { font-size:16px; font-weight:800; font-family:var(--mono); }
   .wl-price .c { font-size:11px; font-family:var(--mono); }
+  .close-btn { margin-top:6px; display:block; width:100%; padding:5px 0; font-size:11px; font-weight:700; letter-spacing:.04em; color:#fff; background:rgba(255,59,92,.18); border:1px solid rgba(255,59,92,.4); border-radius:8px; cursor:pointer; transition:background .2s; }
+  .close-btn:hover { background:rgba(255,59,92,.32); }
+  .close-btn:active { transform:scale(.97); }
   .accent-bar { width:3px; align-self:stretch; border-radius:3px; background:#2a2a40; margin-right:2px; }
   .wl-row.flash-up{ animation:wlUp .6s ease-out; }
   .wl-row.flash-down{ animation:wlDown .6s ease-out; }
@@ -424,7 +427,34 @@ async function loadBrands(){
   } catch(e){ /* degrade gracefully */ }
 }
 
+async function closePosition(sym, side){
+  if(!confirm(`Close ${side} ${sym}? The bot will exit on its next tick.`)) return;
+  try {
+    const r = await fetch('/api/positions/close', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({symbol:sym, side})});
+    const j = await r.json();
+    if(j.ok){ flashToast(`${sym} close requested`); refresh(); }
+    else flashToast(j.error||'close failed', true);
+  } catch(e){ flashToast('close failed: '+e.message, true); }
+}
+
 async function refresh(){
+  // Flash a small toast
+  function flashToast(msg, isErr){
+    let t = document.getElementById('toast');
+    if(!t){ t = document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;left:50%;bottom:84px;transform:translateX(-50%);padding:8px 14px;border-radius:10px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s;background:rgba(20,22,34,.92);color:#fff;border:1px solid rgba(255,255,255,.12)'; document.body.appendChild(t); }
+    t.textContent = msg; t.style.borderColor = isErr ? 'rgba(255,59,92,.6)' : 'rgba(0,230,118,.5)';
+    t.style.opacity = 1; setTimeout(()=>{ t.style.opacity = 0; }, 2200);
+  }
+
+async function closePosition(sym, side){
+  if(!confirm(`Close ${side} ${sym}? The bot will exit on its next tick.`)) return;
+  try {
+    const r = await fetch('/api/positions/close', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({symbol:sym, side})});
+    const j = await r.json();
+    if(j.ok){ flashToast(`${sym} close requested`); refresh(); }
+    else flashToast(j.error||'close failed', true);
+  } catch(e){ flashToast('close failed: '+e.message, true); }
+}
   // Fetch all individually — one failure doesn't kill everything
   const api = async (url, fallback=null) => { try { return await (await fetch(url)).json(); } catch(e){ return fallback; }};
   const [s, t, a, ch, cfg, pos] = await Promise.all([
@@ -472,8 +502,14 @@ async function refresh(){
         const tp = p.take_profit!=null ? (p.take_profit*100).toFixed(0)+'%' : '—';
         let held = '';
         try { const ms = Date.now() - new Date(p.opened_at).getTime(); const h = Math.floor(ms/3600000); const m = Math.floor((ms%3600000)/60000); held = (h>0?h+'h ':'')+m+'m'; } catch(e){ held='—'; }
-        return `<div class="wl-row"><div class="accent-bar" style="background:${p.side==='SHORT'?'var(--red)':'var(--green)'}"></div>${logoChip(p.symbol)}<div class="wl-info"><div class="sym">${p.symbol} <span class="tag ${sideCls}">${p.side}</span></div><div class="wl-name">entry $${(p.entry_price||0).toFixed(2)} &middot; now ${price}</div><div class="wl-name">SL ${sl} &middot; TP ${tp} &middot; held ${held}</div></div><div class="wl-price"><div class="p ${pcls}">${pnlStr}</div></div></div>`;
+        return `<div class="wl-row"><div class="accent-bar" style="background:${p.side==='SHORT'?'var(--red)':'var(--green)'}"></div>${logoChip(p.symbol)}<div class="wl-info"><div class="sym">${p.symbol} <span class="tag ${sideCls}">${p.side}</span></div><div class="wl-name">entry $${(p.entry_price||0).toFixed(2)} &middot; now ${price}</div><div class="wl-name">SL ${sl} &middot; TP ${tp} &middot; held ${held}</div></div><div class="wl-price"><div class="p ${pcls}">${pnlStr}</div><button class="close-btn" data-sym="${p.symbol}" data-side="${p.side}">Close</button></div></div>`;
       }).join('');
+      // wire close buttons (delegated)
+      const posEl = $('positions');
+      if(posEl && !posEl._wired){
+        posEl.addEventListener('click', e=>{ const b = e.target.closest('.close-btn'); if(!b) return; closePosition(b.dataset.sym, b.dataset.side); });
+        posEl._wired = true;
+      }
     }).catch(()=>{});
     try {
     const portfolio = s.portfolio || {};

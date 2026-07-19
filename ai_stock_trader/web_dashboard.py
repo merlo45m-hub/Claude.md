@@ -537,6 +537,38 @@ def get_positions():
         })
     return jsonify({'positions': out})
 
+@app.route('/api/positions/close', methods=['POST'])
+def close_position():
+    """Queue a manual close request. The bot honors it on its next loop tick.
+    Only an *open* position can be requested; prevents wrong-side / double close."""
+    data = request.get_json(silent=True) or {}
+    symbol = (data.get('symbol') or '').upper().strip()
+    side = (data.get('side') or '').upper().strip()
+    if not symbol or side not in ('LONG', 'SHORT'):
+        return jsonify({'ok': False, 'error': 'symbol + side(LONG|SHORT) required'}), 400
+    conn = get_db()
+    row = conn.execute(
+        'SELECT 1 FROM positions WHERE symbol = ? AND side = ?', (symbol, side)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'ok': False, 'error': f'no open {side} position for {symbol}'}), 404
+    # Ensure close_requests table exists (self-healing; bot also creates it)
+    try:
+        conn2 = get_db()
+        conn2.execute('''CREATE TABLE IF NOT EXISTS close_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, symbol TEXT, side TEXT, requested_at TEXT, done INTEGER DEFAULT 0
+        )''')
+        conn2.execute(
+            'INSERT INTO close_requests (symbol, side, requested_at) VALUES (?, ?, ?)',
+            (symbol, side, time.strftime('%Y-%m-%dT%H:%M:%S'))
+        )
+        conn2.commit()
+        conn2.close()
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    return jsonify({'ok': True, 'symbol': symbol, 'side': side, 'status': 'close requested'})
+
 def start_background_thread():
     thread = threading.Thread(target=background_thread)
     thread.daemon = True

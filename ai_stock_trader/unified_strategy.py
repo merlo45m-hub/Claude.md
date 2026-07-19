@@ -79,6 +79,9 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS challenge_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, event TEXT, value REAL
         )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS close_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, symbol TEXT, side TEXT, requested_at TEXT, done INTEGER DEFAULT 0
+        )''')
         c.execute("INSERT OR IGNORE INTO portfolio (id, timestamp, cash, position, value) VALUES (1, ?, 100.0, 0.0, 100.0)",
                   (datetime.datetime.now().isoformat(),))
         c.execute("INSERT OR IGNORE INTO challenge_status (id) VALUES (1)")
@@ -235,6 +238,36 @@ def scale_position(symbol, side, new_price, scale_factor=0.5):
                 conn.commit()
                 log_trade(symbol, f"SCALE_{side}", new_price, size, cash + old_size * new_price, 0.03, 0.02)
                 print(f"[{symbol}] SCALED {side} +{size:.4f} @ ${new_price:.2f} (scale #{scales + 1})")
+    finally:
+        conn.close()
+
+def request_close_position(symbol, side):
+    """Queue a manual close. The bot honors it on its next loop tick via the same exit path."""
+    conn = get_db_connection()
+    try:
+        c = conn.cursor()
+        c.execute("INSERT INTO close_requests (symbol, side, requested_at) VALUES (?, ?, ?)",
+                  (symbol, side, datetime.datetime.now().isoformat()))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+def get_pending_close_requests():
+    conn = get_db_connection()
+    try:
+        c = conn.cursor()
+        c.execute("SELECT symbol, side FROM close_requests WHERE done = 0")
+        return [{'symbol': r[0], 'side': r[1]} for r in c.fetchall()]
+    finally:
+        conn.close()
+
+def clear_close_request(symbol, side):
+    conn = get_db_connection()
+    try:
+        c = conn.cursor()
+        c.execute("UPDATE close_requests SET done = 1 WHERE symbol = ? AND side = ? AND done = 0", (symbol, side))
+        conn.commit()
     finally:
         conn.close()
 
@@ -422,6 +455,15 @@ def main():
                         update_trailing_price(symbol, 'LONG', new_high=new_high)
                         position['trailing_high'] = new_high
                     
+                    # Check for manual close request (honored via same exit path)
+                    pending = get_pending_close_requests()
+                    if any(r['symbol'] == symbol and r['side'] == position['side'] for r in pending):
+                        print(f"[{symbol}] EXIT: MANUAL_CLOSE @ ${price:.2f}")
+                        log_trade(symbol, "CLOSE_MANUAL", price, position['size'], portfolio_value)
+                        update_position(symbol, position['side'], 0, 0, 0, 0, action='close')
+                        clear_close_request(symbol, position['side'])
+                        continue
+
                     # Check for position scaling (1.5% favorable move)
                     entry = position['entry_price']
                     favorable = (entry - price) / entry if position['side'] == 'SHORT' else (price - entry) / entry
