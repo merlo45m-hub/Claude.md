@@ -88,6 +88,27 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 body:has(.panel:hover) .panel:not(:hover){opacity:.5;transform:scale(.992);transition:opacity .35s,transform .35s}
 .panel{transition:opacity .35s,transform .35s,box-shadow .35s}
 .panel:hover{box-shadow:0 12px 44px rgba(0,0,0,.5),inset 0 0 0 1px rgba(168,85,247,.25),0 0 30px rgba(168,85,247,.18);border-color:rgba(168,85,247,.35)}
+/* animated gradient border sweep (2) */
+.panel{position:relative;border:1px solid transparent;background-clip:padding-box;border-radius:14px}
+.panel::before{content:"";position:absolute;inset:0;border-radius:14px;padding:1px;background:conic-gradient(from var(--ang,0deg),rgba(168,85,247,.5),rgba(0,212,255,.5),rgba(0,255,157,.5),rgba(168,85,247,.5));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.35;pointer-events:none;animation:borderSpin 8s linear infinite}
+@keyframes borderSpin{to{--ang:360deg}}
+@property --ang{syntax:'<angle>';initial-value:0deg;inherits:false}
+/* cursor-follow glow (5) */
+.cursor-glow{position:fixed;width:420px;height:420px;border-radius:50%;pointer-events:none;z-index:1;left:0;top:0;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(168,85,247,.10),transparent 65%);opacity:0;transition:opacity .4s}
+body:hover .cursor-glow{opacity:1}
+/* ticker price flash (3) */
+.ticker-item.flash-up{animation:tkUp .6s ease-out}
+.ticker-item.flash-down{animation:tkDown .6s ease-out}
+@keyframes tkUp{0%{background:rgba(0,255,157,.18)}100%{background:transparent}}
+@keyframes tkDown{0%{background:rgba(255,59,111,.18)}100%{background:transparent}}
+/* equity mini-bar in stat card (4) */
+.eq-mini-bar{height:4px;border-radius:3px;margin-top:8px;background:rgba(255,255,255,.06);overflow:hidden}
+.eq-mini-bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--green));transition:width .6s ease-out}
+/* animated gradient title text (1) */
+.logo span.grad{background:linear-gradient(90deg,#a855f7,#00d4ff,#00ff9d,#a855f7);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleFlow 6s linear infinite;font-weight:700}
+@keyframes titleFlow{to{background-position:300% 0}}
+/* in-card equity sparkline (2) */
+.eq-card-spark{width:100%;height:26px;margin-top:8px;display:block}
 .panel-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
 .panel-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)}
 .panel-controls{display:flex;align-items:center;gap:8px;font-size:12px}
@@ -245,6 +266,7 @@ tr:hover td{background:rgba(99,102,241,.04)}
 <body>
 
 <div class="ambient"></div>
+<div class="cursor-glow" id="cursorGlow"></div>
 
 <!-- Tier 4: reset takeover modal -->
 <div class="reset-modal" id="resetModal">
@@ -266,7 +288,7 @@ tr:hover td{background:rgba(99,102,241,.04)}
 <header>
   <div class="logo">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#a855f7" stroke-width="2" stroke-linejoin="round"/></svg>
-    <span>AI Crypto Bot</span>
+    <span class="grad">AI Crypto Bot</span>
     <span class="status-dot on" id="statusDot"></span>
   </div>
   <div class="header-right">
@@ -426,12 +448,13 @@ function renderTicker(prices, prevPrices = {}) {
     const chgPct = prev > 0 ? (chg / prev) * 100 : 0;
     const isUp = chg >= 0;
     const isActive = sym === selectedSymbol;
+    const flash = prev !== price ? (isUp ? 'flash-up' : 'flash-down') : '';
     const b = BRANDS[sym] || {};
     // rolling price history for mini sparkline (item 3)
     (_priceHist[sym] = _priceHist[sym] || []).push(price);
     if (_priceHist[sym].length > 40) _priceHist[sym].shift();
     const logo = b.logo ? `<img src="${b.logo}" style="width:22px;height:22px;border-radius:6px;object-fit:contain;background:#fff;flex:0 0 auto" onerror="this.style.display='none'">` : '';
-    return `<div class="ticker-item ${isActive ? 'active' : ''}" onclick="switchSymbol('${sym}')">
+    return `<div class="ticker-item ${isActive ? 'active' : ''} ${flash}" onclick="switchSymbol('${sym}')">
       <div style="display:flex;align-items:center;gap:8px">
         ${logo}
         <div class="ticker-sym">${sym.replace('/USDT','')}</div>
@@ -635,6 +658,8 @@ async function loadStats() {
         <div class="stat-label">Portfolio</div>
         <div class="stat-value ${d.total_pnl >= 0 ? 'stat-green' : 'stat-red'}" id="statEquity">${fmt$(d.equity)}</div>
         <div class="stat-sub ${d.total_return_pct >= 0 ? 'stat-green' : 'stat-red'}">${fmtPct(d.total_return_pct)} all time</div>
+        <div class="eq-mini-bar"><i id="eqBar" style="width:${Math.max(0,Math.min(100,(d.equity/1000)*100))}%"></i></div>
+        <canvas class="eq-card-spark" id="eqCardSpark" width="220" height="26"></canvas>
       </div>
       <div class="stat-card">
         <div class="stat-label">Cash</div>
@@ -677,6 +702,16 @@ async function loadStats() {
       }
     }
     _lastEquity = d.equity;
+    // in-card equity sparkline (2) — draw recent equity history
+    const ec = document.getElementById('eqCardSpark');
+    if (ec) {
+      try {
+        const eres = await fetch('/api/equity');
+        const ej = await eres.json();
+        const pts = (ej.points || []).map(p => p.equity).filter(v => typeof v === 'number');
+        _spark(ec, pts.length ? pts : [d.equity], 'rgba(0,255,157,.9)');
+      } catch(_) {}
+    }
   } catch(e) { console.warn('Stats load failed:', e); }
 }
 
@@ -1187,6 +1222,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }, {passive:true});
   document.addEventListener('touchend', () => { pulling = false; });
+
+  // Cursor-follow glow (5) — soft light tracks the mouse
+  const cg = document.getElementById('cursorGlow');
+  if (cg && window.matchMedia('(pointer:fine)').matches) {
+    window.addEventListener('mousemove', e => {
+      cg.style.left = e.clientX + 'px';
+      cg.style.top = e.clientY + 'px';
+    }, {passive:true});
+  }
 });
 </script>
 </body>
