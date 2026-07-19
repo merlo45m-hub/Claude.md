@@ -72,6 +72,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .ticker-change.down{color:var(--red)}
 
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+/* underwater / unprofitable warning banner (#7) */
+.underwater-banner{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;border-radius:10px;background:rgba(255,59,111,.08);border:1px solid rgba(255,59,111,.35)}
+.underwater-banner .uw-icon{color:var(--red);font-size:16px}
+.underwater-banner .uw-text{color:#ffb3c4;font-size:12px;font-weight:600;letter-spacing:.3px}
 .stat-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;transition:border-color .2s}
 .stat-card:hover{border-color:var(--border2)}
 .stat-label{font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
@@ -368,6 +372,11 @@ tr:hover td{background:rgba(99,102,241,.04)}
     <div class="skeleton skeleton-card"></div>
   </div>
 
+  <div class="underwater-banner" id="underwaterBanner" style="display:none">
+    <span class="uw-icon">⚠</span>
+    <span class="uw-text">STRATEGY UNDERWATER — live equity is below starting capital. Current strategy config has been backtested unprofitable on recent data.</span>
+  </div>
+
   <!-- Charts Row -->
   <div class="charts-row">
     <div class="panel">
@@ -602,6 +611,11 @@ function initEquityChart() {
         return g;
       },
       fill: true, tension: 0.3, pointRadius: 0, pointHitRadius: 6,
+    }, {
+      label: 'Peak', data: [],
+      borderColor: 'rgba(255,59,111,0.35)', borderWidth: 1, borderDash: [4, 4],
+      backgroundColor: 'rgba(255,59,111,0.12)',
+      fill: '-1', tension: 0.3, pointRadius: 0,
     }]},
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -631,8 +645,12 @@ async function loadEquity() {
     const labels = pts.map(p => p.timestamp ? fmtTime(p.timestamp) : '');
     const values = pts.map(p => p.equity);
     if (!equityChartInstance) return;
+    // drawdown envelope: running peak (underwater = equity below peak)
+    let peak = -Infinity;
+    const peaks = values.map(v => (peak = Math.max(peak, v)));
     equityChartInstance.data.labels = labels;
     equityChartInstance.data.datasets[0].data = values;
+    equityChartInstance.data.datasets[1].data = peaks;
     equityChartInstance.update('none');
   } catch(e) { console.warn('Equity load failed:', e); }
 }
@@ -737,6 +755,11 @@ async function loadStats() {
       </div>
     `;
     document.title = `AI Bot ${fmt$(d.equity)}`;
+    // underwater warning (#7) — live equity below starting capital
+    const uw = document.getElementById('underwaterBanner');
+    if (uw && d.initial_capital > 0) {
+      uw.style.display = d.equity < d.initial_capital ? 'flex' : 'none';
+    }
     // equity reel on change (item 3)
     const eqEl = document.getElementById('statEquity');
     if (eqEl && _lastEquity !== null && _lastEquity !== d.equity) {
