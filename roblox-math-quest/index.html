@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roblox Math Quest</title>
+    <style>
+        :root {
+            --bg-color: #f5f7fa;
+            --primary: #3498db;
+            --primary-dark: #2980b9;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f1c40f;
+            --text-dark: #2c3e50;
+            --text-light: #7f8c8d;
+            --border-radius: 12px;
+            --box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-dark);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        #game-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin: 0 0 10px;
+            color: var(--primary);
+        }
+        .subtitle {
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-bottom: 4px;
+        }
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        #question {
+            font-size: 2.2rem;
+            font-weight: 600;
+            margin: 25px 0;
+            min-height: 3.2em;
+            background: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .answers {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .answer-btn {
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: var(--border-radius);
+            padding: 18px;
+            font-size: 1.1rem;
+            color: var(--primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: var(--box-shadow);
+        }
+        .answer-btn:hover:not(.disabled) {
+            background: rgba(52, 152, 219, 0.1);
+            transform: translateY(-2px);
+        }
+        .answer-btn:active:not(.disabled) {
+            transform: translateY(0);
+        }
+        .answer-btn.correct {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+        .answer-btn.wrong {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+        }
+        .answer-btn.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        #message {
+            min-height: 24px;
+            margin-top: 10px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        #level-up-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        #level-up-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+        #level-up-overlay h2 {
+            margin: 0 0 20px;
+            font-size: 2.5rem;
+        }
+        #level-up-overlay .stats {
+            width: 80%;
+            max-width: 300px;
+            margin-bottom: 20px;
+        }
+        #continue-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: var(--box-shadow);
+        }
+        #continue-btn:hover {
+            background: var(--primary-dark);
+            transform: scale(1.05);
+        }
+        .mini-game {
+            background: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            text-align: center;
+        }
+        .mini-game h3 {
+            margin-top: 0;
+        }
+        #target {
+            width: 80px;
+            height: 80px;
+            background: var(--primary);
+            border-radius: 50%;
+            margin: 20px auto;
+            position: relative;
+        }
+        #tap-count {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <header>
+            <h1>Roblox Math Quest</h1>
+            <p class="subtitle">Math adventure for ages 7-12</p>
+        </header>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Level</div>
+                <div class="stat-value" id="level-value">1</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">XP</div>
+                <div class="stat-value" id="xp-value">0</div>
+                <div class="progress-container" style="height: 6px; background: #ecf0f1; border-radius: 3px; margin-top: 4px; overflow: hidden;">
+                    <div id="xp-bar" style="height: 100%; background: var(--primary); width: 0%;"></div>
+                </div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Coins</div>
+                <div class="stat-value" id="coins-value">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Streak</div>
+                <div class="stat-value" id="streak-value">0</div>
+            </div>
+        </div>
+        
+        <div id="question">3 + 5 = ?</div>
+        
+        <div class="answers">
+            <button class="answer-btn" id="btnA">8</button>
+            <button class="answer-btn" id="btnB">9</button>
+            <button class="answer-btn" id="btnC">7</button>
+            <button class="answer-btn" id="btnD">10</button>
+        </div>
+        
+        <div id="message"></div>
+        
+        <!-- Level Up Overlay -->
+        <div id="level-up-overlay" class="hidden">
+            <h2>Level Up!</h2>
+            <div class="stats" id="level-up-stats">
+                <!-- Will be filled dynamically -->
+            </div>
+            <button id="continue-btn">Continue Adventure</button>
+        </div>
+        
+        <!-- Mini Game Placeholder -->
+        <div id="mini-game" class="hidden">
+            <div class="mini-game">
+                <h3>Tap the Moving Target!</h3>
+                <div id="target"></div>
+                <div id="tap-count">0/5</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        const STATE_KEY = 'rmq_game_state_v2';
+        let state = {
+            level: 1,
+            xp: 0,
+            xpToNext: 100,
+            coins: 0,
+            streak: 0,
+            totalCorrect: 0,
+            totalQuestions: 0,
+            difficulty: 1.0,
+            consecutiveCorrect: 0,
+            wrongStreak: 0,
+            awaitingMiniGame: false,
+            inMiniGame: false,
+            miniGameTarget: 0,
+            miniGameHits: 0,
+            lastCorrect: false
+        };
+        
+        // Load saved state
+        const saved = localStorage.getItem(STATE_KEY);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                // Merge with defaults to avoid missing properties
+                state = { ...state, ...parsed };
+            } catch (e) {
+                console.warn('Failed to parse save data', e);
+            }
+        }
+        
+        function saveState() {
+            try {
+                localStorage.setItem(STATE_KEY, JSON.stringify(state));
+            } catch (e) {
+                console.warn('Failed to save state', e);
+            }
+        }
+        
+        // DOM Elements
+        const levelValue = document.getElementById('level-value');
+        const xpValue = document.getElementById('xp-value');
+        const xpBar = document.getElementById('xp-bar');
+        const xpValueText = document.getElementById('xp-value'); // already have
+        const coinsValue = document.getElementById('coins-value');
+        const streakValue = document.getElementById('streak-value');
+        const questionEl = document.getElementById('question');
+        const btns = {
+            A: document.getElementById('btnA'),
+            B: document.getElementById('btnB'),
+            C: document.getElementById('btnC'),
+            D: document.getElementById('btnD')
+        };
+        const messageEl = document.getElementById('message');
+        const levelOverlay = document.getElementById('level-up-overlay');
+        const levelUpStats = document.getElementById('level-up-stats');
+        const continueBtn = document.getElementById('continue-btn');
+        const miniGameEl = document.getElementById('mini-game');
+        const targetEl = document.getElementById('target');
+        const tapCountEl = document.getElementById('tap-count');
+        
+        // Update UI from state
+        function updateUI() {
+            levelValue.textContent = state.level;
+            xpValue.textContent = state.xp;
+            const xpPercent = (state.xp / state.xpToNext) * 100;
+            xpBar.style.width = xpPercent + '%';
+            coinsValue.textContent = state.coins;
+            streakValue.textContent = state.streak;
+        }
+        
+        // Generate a math problem based on difficulty and level
+        function generateProblem() {
+            // Determine operation based on level
+            let op = '+';
+            if (state.level >= 3) {
+                const rand = Math.random();
+                if (state.level < 5) {
+                    // 50% addition, 50% subtraction
+                    op = Math.random() < 0.5 ? '+' : '-';
+                } else if (state.level < 8) {
+                    // 4
+                    const r = Math.random();
+                    if (r < 0.4) op = '+';
+                    else if (r < 0.7) op = '-';
+                    else if (r < 0.9) op = '*';
+                    else op = '/';
+                } else {
+                    // All operations with some weighting
+                    const r = Math.random();
+                    if (r < 0.3) op = '+';
+                    else if (r < 0.5) op = '-';
+                    else if (r < 0.7) op = '*';
+                    else op = '/';
+                }
+            }
+            
+            // Determine number range
+            let maxNum = 10 * Math.sqrt(state.difficulty);
+            if (state.level > 10) maxNum *= 1.5;
+            if (state.level > 20) maxNum *= 1.5;
+            maxNum = Math.floor(maxNum);
+            if (maxNum < 4) maxNum = 4;
+            
+            let a, b, result;
+            let valid = false;
+            let attempts = 0;
+            while (!valid && attempts < 100) {
+                a = Math.floor(Math.random() * maxNum) + 1;
+                b = Math.floor(Math.random() * maxNum) + 1;
+                attempts++;
+                
+                switch (op) {
+                    case '+':
+                        result = a + b;
+                        valid = true;
+                        break;
+                    case '-':
+                        // Ensure non-negative
+                        if (a >= b) {
+                            result = a - b;
+                            valid = true;
+                        }
+                        break;
+                    case '*':
+                        result = a * b;
+                        // Limit product size
+                        if (result <= 1000) valid = true;
+                        break;
+                    case '/':
+                        // Ensure integer division
+                        b = Math.max(1, b);
+                        a = b * (Math.floor(Math.random() * 12) + 1); // a is multiple of b
+                        result = a / b;
+                        if (Number.isInteger(result)) valid = true;
+                        break;
+                }
+            }
+            
+            // If we couldn't generate a valid division, fall back to multiplication
+            if (!valid && op === '/') {
+                op = '*';
+                result = a * b;
+                while (result > 1000) {
+                    a = Math.floor(Math.random() * 10) + 1;
+                    b = Math.floor(Math.random() * 10) + 1;
+                    result = a * b;
+                }
+            }
+            
+            // Create question string
+            let question;
+            switch (op) {
+                case '+': question = `${a} + ${b} = ?`; break;
+                case '-': question = `${a} - ${b} = ?`; break;
+                case '*': question = `${a} × ${b} = ?`; break;
+                case '/': question = `${a} ÷ ${b} = ?`; break;
+            }
+            
+            // Generate 4 answer options (one correct, three plausible distractors)
+            const correct = result;
+            const answers = [correct];
+            
+            // Generate distractors
+            while (answers.length < 4) {
+                let distractor;
+                if (op === '+') {
+                    distractor = correct + Math.floor(Math.random() * 10) - 5;
+                } else if (op === '-') {
+                    distractor = correct + Math.floor(Math.random() * 10) - 5;
+                } else if (op === '*') {
+                    distractor = correct + Math.floor(Math.random() * 20) - 10;
+                } else { // '/'
+                    distractor = correct + Math.floor(Math.random() * 5) - 2;
+                }
+                // Ensure distractor is positive integer and not duplicate
+                if (distractor > 0 && Math.floor(distractor) === distractor && !answers.includes(distractor)) {
+                    // Also make sure it's not too far off (optional)
+                    if (Math.abs(distractor - correct) <= Math.max(20, Math.abs(correct) * 0.5)) {
+                        answers.push(distractor);
+                    }
+                }
+            }
+            
+            // Shuffle answers
+            for (let i = answers.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [answers[i], answers[j]] = [answers[j], answers[i]];
+            }
+            
+            return { question, correct, answers, op, a, b };
+        }
+        
+        // Check answer
+        function checkAnswer(selectedIndex) {
+            if (state.answering) return; // Prevent multiple taps
+            state.answering = true;
+            
+            const { correct } = state.currentProblem;
+            const isCorrect = selectedIndex === state.currentProblem.correctIndex;
+            
+            // Disable all buttons
+            Object.values(btns).forEach((btn, idx) => {
+                btn.classList.add('disabled');
+                if (idx === state.currentProblem.correctIndex) {
+                    btn.classList.add('correct');
+                } else if (idx === selectedIndex && !isCorrect) {
+                    btn.classList.add('wrong');
+                }
+            });
+            
+            // Update message
+            if (isCorrect) {
+                messageEl.textContent = 'Correct!';
+                messageEl.style.color = 'var(--success)';
+                handleCorrect();
+            } else {
+                messageEl.textContent = 'Try again!';
+                messageEl.style.color = 'var(--danger)';
+                handleWrong();
+            }
+            
+            // Re-enable after delay
+            setTimeout(() => {
+                Object.values(btns).forEach(btn => {
+                    btn.classList.remove('disabled', 'correct', 'wrong');
+                });
+                state.answering = false;
+                if (!state.waitingForNext) {
+                    loadNewProblem();
+                }
+            }, 1500);
+        }
+        
+        // Handle correct answer
+        function handleCorrect() {
+            state.lastCorrect = true;
+            state.streak++;
+            state.wrongStreak = 0;
+            state.totalCorrect++;
+            
+            // XP reward
+            const xpGain = Math.floor(10 * state.difficulty);
+            state.xp += xpGain;
+            
+            // Coin reward
+            const coinGain = Math.floor(5 * state.difficulty);
+            state.coins += coinGain;
+            
+            // Check for level up
+            if (state.xp >= state.xpToNext) {
+                levelUp();
+            }
+            
+            // Update streak for perfect round tracking
+            state.consecutiveCorrect++;
+            if (state.consecutiveCorrect >= 4) {
+                state.awaitingMiniGame = true;
+                // We'll trigger mini-game after a short delay to let feedback show
+            }
+            
+            // Update difficulty based on recent performance (simple)
+            if (state.totalQuestions % 5 === 0) {
+                const accuracy = state.totalCorrect / state.totalQuestions;
+                if (accuracy > 0.8) {
+                    state.difficulty = Math.min(state.difficulty + 0.05, 3.0);
+                } else if (accuracy < 0.5) {
+                    state.difficulty = Math.max(state.difficulty - 0.05, 0.5);
+                }
+            }
+        }
+        
+        // Handle wrong answer
+        function handleWrong() {
+            state.lastCorrect = false;
+            state.streak = 0;
+            state.wrongStreak++;
+            state.consecutiveCorrect = 0;
+            
+            // Small penalty? No XP loss, just no gain
+        }
+        
+        // Level up logic
+        function levelUp() {
+            state.level++;
+            const overflow = state.xp - state.xpToNext;
+            state.xp = overflow;
+            // Increase XP needed for next level (linear growth)
+            state.xpToNext = 100 + (state.level - 1) * 50;
+            state.coins += state.level * 10; // Bonus coins
+            
+            // Show overlay
+            levelUpStats.innerHTML = `
+                <div class="stat"><div class="stat-label">New Level</div><div class="stat-value">${state.level}</div></div>
+                <div class="stat"><div class="stat-label">Bonus Coins</div><div class="stat-value">${state.level * 10}</div></div>
+            `;
+            levelOverlay.classList.remove('hidden');
+            levelOverlay.classList.add('visible');
+        }
+        
+        // Continue from level up
+        function continueFromLevelUp() {
+            levelOverlay.classList.remove('visible');
+            levelOverlay.classList.add('hidden');
+            loadNewProblem();
+        }
+        
+        // Load a new problem
+        function loadNewProblem() {
+            // If we just finished a mini-game, reset flags
+            if (state.inMiniGame) {
+                state.inMiniGame = false;
+                state.awaitingMiniGame = false;
+            }
+            
+            // Check if we should launch mini-game
+            if (state.awaitingMiniGame && !state.inMiniGame) {
+                startMiniGame();
+                return;
+            }
+            
+            state.currentProblem = generateProblem();
+            // Determine correct answer index
+            const answers = [...state.currentProblem.answers];
+            const correctIndex = answers.indexOf(state.currentProblem.correct);
+            state.currentProblem.correctIndex = correctIndex;
+            
+            // Assign to buttons
+            const btnKeys = ['A', 'B', 'C', 'D'];
+            btnKeys.forEach((key, idx) => {
+                btns[key].textContent = answers[idx];
+            });
+            
+            questionEl.textContent = state.currentProblem.question;
+            messageEl.textContent = '';
+            state.waitingForNext = false;
+            state.answering = false;
+            
+            state.totalQuestions++;
+            saveState();
+            updateUI();
+        }
+        
+        // Mini-game: Tap the moving target
+        function startMiniGame() {
+            state.inMiniGame = true;
+            state.awaitingMiniGame = false;
+            state.miniGameHits = 0;
+            state.miniGameTarget = 5; // Need 5 taps
+            
+            miniGameEl.classList.remove('hidden');
+            // Position target randomly
+            moveTarget();
+        }
+        
+        function moveTarget() {
+            const container = document.getElementById('game-container');
+            const containerWidth = container.clientWidth - 80; // account for target size
+            const containerHeight = container.clientHeight - 200; // leave space for UI
+            
+            const x = Math.random() * Math.max(0, containerWidth);
+            const y = Math.random() * Math.max(0, containerHeight);
+            
+            targetEl.style.left = `${x}px`;
+            targetEl.style.top = `${y}px`;
+        }
+        
+        // Event Listeners
+        Object.values(btns).forEach((btn, idx) => {
+            btn.addEventListener('click', () => {
+                if (!state.answering && !state.waitingForNext) {
+                    checkAnswer(idx);
+                }
+            });
+        });
+        
+        continueBtn.addEventListener('click', continueFromLevelUp);
+        
+        targetEl.addEventListener('click', () => {
+            if (!state.inMiniGame) return;
+            state.miniGameHits++;
+            tapCountEl.textContent = `${state.miniGameHits}/${state.miniGameTarget}`;
+            moveTarget(); // Move to new position
+            
+            if (state.miniGameHits >= state.miniGameTarget) {
+                // Mini-game complete
+                setTimeout(() => {
+                    miniGameEl.classList.add('hidden');
+                    // Reward for completing mini-game
+                    state.xp += 20;
+                    state.coins += 15;
+                    updateUI();
+                    loadNewProblem();
+                }, 500);
+            }
+        });
+        
+        // Initialize
+        function init() {
+            updateUI();
+            loadNewProblem();
+        }
+        
+        // Start
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

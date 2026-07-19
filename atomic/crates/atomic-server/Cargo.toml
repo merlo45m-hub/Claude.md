@@ -1,0 +1,86 @@
+[package]
+name = "atomic-server"
+version = "0.1.0"
+edition = "2021"
+description = "Standalone HTTP server for Atomic knowledge base"
+license = "MIT"
+default-run = "atomic-server"
+
+[lib]
+name = "atomic_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "atomic-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "export-openapi"
+path = "src/bin/export-openapi.rs"
+
+[dependencies]
+# Core library
+atomic-core = { path = "../atomic-core", features = ["openapi", "postgres"] }
+
+# Web framework
+actix-web = "4.9"
+actix-cors = "0.7"
+actix-ws = "0.3"
+actix-files = "0.6"
+
+# Async
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "signal", "process"] }
+futures = "0.3"
+async-stream = "0.3"
+tokio-stream = "0.1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# CLI
+clap = { version = "4", features = ["derive", "env"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# Utilities
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# HTTP client (for OpenRouter proxy calls + migration push uploads)
+reqwest = { version = "0.12", features = ["json", "stream"] }
+tokio-util = { version = "0.7", features = ["io"] }
+
+# MCP server
+rmcp = { version = "0.15", features = ["server", "macros", "transport-streamable-http-server"] }
+schemars = "1.0"
+
+# OpenAPI
+utoipa = { version = "5", features = ["actix_extras", "preserve_order"] }
+utoipa-scalar = { version = "0.3", features = ["actix-web"] }
+
+# OAuth / crypto
+sha2 = "0.10"
+rand = "0.8"
+base64 = "0.22"
+
+[dev-dependencies]
+tempfile = "3"
+# Shared mock OpenAI-compat server + Postgres truncate helper. The `postgres`
+# feature gates the truncate path; we keep it on unconditionally since the
+# atomic-server e2e suite includes Postgres CI runs.
+atomic-test-support = { path = "../atomic-test-support", features = ["postgres"] }
+# Needed for the bound `Service<actix_http::Request, ...>` on the polling
+# helper — `actix_web::test::init_service` returns that type but actix-web
+# doesn't re-export the name.
+actix-http = "3"
+# WebSocket client for the e2e suite that asserts pipeline events arrive
+# over a real connection. tokio-tungstenite plays cleanly with the tokio
+# runtime that the rest of the test harness already runs on.
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+# The task-runs e2e slice defines stub `ScheduledTask` impls to drive the
+# scheduler tick against both storage backends.
+async-trait = "0.1"

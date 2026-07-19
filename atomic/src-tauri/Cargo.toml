@@ -1,0 +1,36 @@
+[package]
+name = "atomic"
+version = "1.42.2"
+description = "Atomic — a semantically-connected, AI-augmented personal knowledge base"
+authors = ["Kenneth Bergquist"]
+license = "MIT"
+repository = "https://github.com/kenforthewin/atomic"
+edition = "2021"
+
+[lib]
+name = "atomic_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-fs = "2"
+atomic-core = { path = "../crates/atomic-core" }
+serde = { version = "1", features = ["derive"] }
+reqwest = { version = "0.12", features = ["blocking"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# Apple Notes import (read SQLite NoteStore and gunzip protobuf blobs)
+rusqlite = { version = "0.32", features = ["bundled"] }
+flate2 = "1"
+base64 = "0.22"
+thiserror = "1"
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,0 +1,34 @@
+services:
+  trader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-stock-trader
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - /root/ai_stock_trader/trading_data.db:/data/trading_data.db
+    networks:
+      - trading-net
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: ai-stock-dashboard
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8085:8084"
+    volumes:
+      - /root/ai_stock_trader/trading_data.db:/data/trading_data.db
+      - /root/ai_stock_trader/decision_log.txt:/app/decision_log.txt
+      - /root/ai_stock_trader/config.json:/app/config.json
+    depends_on:
+      - trader
+    networks:
+      - trading-net
+
+networks:
+  trading-net:
+    driver: bridge

@@ -1,0 +1,9 @@
+[preset0]
+name=AndroidDebug
+loader=AndroidExportTemplate
+export_path=res://../builds/roblox_math_quest_debug.apk
+template_debug=res://android_debug.apk
+template_release=res://android_release.apk
+keystore_user=androiddebugkey
+keystore_password=[REDACTED]
+keystore_path=res://debug.keystore

@@ -1,0 +1,52 @@
+# Rust build artifacts
+target/
+src-tauri/target/
+
+# Node (dockerignore patterns don't recurse — `**/` catches the nested
+# crates/atomic-cloud/frontend/node_modules that `COPY crates/` would sweep in)
+node_modules/
+**/node_modules
+
+# Build outputs
+dist/
+dist-web/
+**/dist
+**/*.tsbuildinfo
+
+# Local backup-store output from the cloud dev stack
+backups/
+
+# Database files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Tauri binaries (platform-specific sidecars)
+src-tauri/binaries/
+
+# Generated code
+gen/
+
+# Scripts (not needed in image)
+scripts/
+
+# Browser extension
+extension/
+
+# Docs
+docs/
+
+# OS files
+.DS_Store
+Thumbs.db

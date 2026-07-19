@@ -1,0 +1,24 @@
+# atomic-discord configuration
+# Copy to atomic-discord.config.yaml and fill in your values.
+
+atomic:
+  server_url: "http://localhost:8080"
+  api_token: "at_..."                    # From: cargo run -p atomic-server -- token create --name atomic-discord
+
+discord:
+  bot_token: "MTIz..."                   # From: Discord Developer Portal → Bot → Token
+
+ingestion:
+  reaction_emoji: "atomic"               # Custom emoji name for reaction capture
+  fallback_emoji: "🧠"                   # Unicode fallback if custom emoji unavailable
+  default_settle_window: 300             # Seconds to wait after last message before ingesting thread
+  default_mode: "reaction-only"          # Default mode for new subscriptions
+  include_bot_messages: false            # Capture messages from other bots?
+  include_embeds: true                   # Include rich embeds in atom body?
+  max_thread_depth: 100                  # Max messages to fetch per thread
+  forum_tag_mapping: true                # Map Discord forum tags to Atomic tags?
+
+tags:
+  auto_channel: true                     # Auto-add channel name as tag
+  auto_guild: false                      # Auto-add guild name as tag
+  custom_prefix: "discord"               # Prefix for auto-generated tags

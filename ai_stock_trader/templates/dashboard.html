@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Stock Trading Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@2.0.2/build/global/luxon.min.js"></script>
+</head>
+<body class="bg-slate-950 text-gray-100 min-h-screen flex flex-col">
+    <div class="flex-1 overflow-y-auto p-4">
+        <header class="mb-6">
+            <div class="flex justify-between items-center flex-wrap">
+                <h1 class="text-2xl font-bold text-blue-400">🤖 AI Stock Trading Bot</h1>
+                <div class="flex space-x-2 flex-wrap">
+                    <button id="configBtn" class="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors">
+                        ⚙️ Config
+                    </button>
+                    <button id="refreshBtn" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors">
+                        🔄 Refresh
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div id="statusBadge" class="mb-4 px-3 py-1 rounded text-sm font-medium inline-block status-running">
+            RUNNING
+        </div>
+
+        <div id="lastUpdate" class="mb-4 text-xs text-gray-500">
+            Last updated: --:--:--
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-800 rounded-lg p-3 flex flex-col items-center">
+                <div class="metric text-2xl font-bold text-white">$100.00</div>
+                <div class="label text-xs text-gray-400 mt-1">Portfolio Value</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-3 flex flex-col items-center">
+                <div class="metric text-2xl font-bold text-white">$100.00</div>
+                <div class="label text-xs text-gray-400 mt-1">Available Cash</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-3 flex flex-col items-center">
+                <div class="metric text-2xl font-bold text-white">0 shares</div>
+                <div class="label text-xs text-gray-400 mt-1">Position</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-3 flex flex-col items-center">
+                <div class="metric text-2xl font-bold text-white">$0.00 (0.00%)</div>
+                <div class="label text-xs text-gray-400 mt-1">P&L</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <div class="bg-gray-800 rounded-lg p-3 flex flex-col items-center">
+                <div class="metric text-2xl font-bold text-white">0</div>
+                <div class="label text-xs text-gray-400 mt-1">Total Trades</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-3 flex flex-col items-center">
+                <div class="metric text-2xl font-bold text-white">--</div>
+                <div class="label text-xs text-gray-400 mt-1">Win Rate</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-3 flex flex-col items-center">
+                <div class="metric text-2xl font-bold text-white">0.0000</div>
+                <div class="label text-xs text-gray-400 mt-1">Avg Trade Size</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-3 flex flex-col items-center">
+                <div class="metric text-2xl font-bold text-white">--</div>
+                <div class="label text-xs text-gray-400 mt-1">Sharpe Ratio</div>
+            </div>
+        </div>
+
+        <section class="mb-6 bg-gray-800 rounded-lg p-4">
+            <div class="flex justify-between items-start mb-3">
+                <h2 class="text-lg font-semibold text-blue-400">Equity Curve</h2>
+                <div class="flex space-x-2">
+                    <button id="chartTimeframe1D" class="px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600">1D</button>
+                    <button id="chartTimeframe1W" class="px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600">1W</button>
+                    <button id="chartTimeframe1M" class="px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600 active">1M</button>
+                    <button id="chartTimeframeALL" class="px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600">ALL</button>
+                </div>
+            </div>
+            <div class="h-48 relative">
+                <canvas id="equityChart"></canvas>
+                <div id="chartLoading" class="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <div class="animate-spin rounded-full border-4 border-b-blue-500 w-8 h-8"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-6 bg-gray-800 rounded-lg p-4">
+            <div class="flex justify-between items-start mb-3">
+                <h2 class="text-lg font-semibold text-blue-400">Recent Trades</h2>
+                <button id="exportTrades" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
+                    📥 Export CSV
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full bg-gray-800 border border-gray-700 rounded-lg overflow-hidden text-sm">
+                    <thead class="bg-gray-700 text-white">
+                        <tr class="text-left">
+                            <th class="px-3 py-2">Time</th>
+                            <th class="px-3 py-2">Action</th>
+                            <th class="px-3 py-2">Symbol</th>
+                            <th class="px-3 py-2">Price</th>
+                            <th class="px-3 py-2">Size</th>
+                            <th class="px-3 py-2">Value</th>
+                            <th class="px-3 py-2">P/L</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trades-body" class="bg-gray-800 divide-y divide-gray-700">
+                        <tr class="text-center text-gray-400">
+                            <td colspan="7" class="px-3 py-4">Loading trades...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="mb-6 bg-gray-800 rounded-lg p-4">
+            <div class="flex justify-between items-start mb-3">
+                <h2 class="text-lg font-semibold text-blue-400">Recent Decisions</h2>
+                <button id="refreshDecisions" class="px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600">⟳ Refresh</button>
+            </div>
+            <div id="decisions-container" class="space-y-2">
+                <div class="text-center text-gray-400 py-4">Loading decisions...</div>
+            </div>
+        </section>
+
+        <section class="bg-gray-800 rounded-lg p-4">
+            <div class="flex justify-between items-start mb-3">
+                <h2 class="text-lg font-semibold text-blue-400">Configuration</h2>
+                <button id="configCancel" class="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700">Cancel</button>
+            </div>
+            <div class="space-y-3">
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-300">Risk per Trade (%)</label>
+                    <input type="number" id="riskPerTrade" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white" step="0.01" min="0.01" max="50" value="2.0">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-300">Max Positions</label>
+                    <input type="number" id="maxPositions" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white" min="1" max="20" value="3">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-300">Stop Loss (%)</label>
+                    <input type="number" id="stopLoss" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white" step="0.01" min="0.01" max="100" value="5.0">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-300">Take Profit (%)</label>
+                    <input type="number" id="takeProfit" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white" step="0.01" min="0.01" max="200" value="10.0">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-300">Symbols (comma-separated)</label>
+                    <input type="text" id="symbols" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white" placeholder="AAPL,MSFT,GOOGL,AMZN,META,TSLA,NVDA,NFLX" value="AAPL,MSFT,GOOGL,AMZN,META,TSLA,NVDA,NFLX">
+                </div>
+                <p id="configMsg" class="text-sm text-green-400 hidden"></p>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" id="configSubmit" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">Save Config</button>
+                </div>
+            </div>
+        </section>
+
+        <div id="toast" class="fixed bottom-4 right-4 p-3 bg-gray-800 text-white rounded-lg hidden z-50 transition-opacity duration-300"></div>
+    </div>
+
+    <div class="hidden" id="configModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000;">
+        <div class="bg-gray-800 rounded-lg p-6 w-96 max-w-[90vw] animate-fadeIn">
+            <h2 class="text-xl font-bold text-blue-400 mb-4">Configuration</h2>
+            <form id="configForm" class="space-y-3">
+                <!-- Content moved to above section -->
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let equityChart = null;
+        let chartTimeframe = '1M';
+
+        const configBtn = document.getElementById('configBtn');
+        const configModal = document.getElementById('configModal');
+        const configSubmit = document.getElementById('configSubmit');
+        const configCancel = document.getElementById('configCancel');
+        const configMsg = document.getElementById('configMsg');
+        const riskPerTradeInput = document.getElementById('riskPerTrade');
+        const maxPositionsInput = document.getElementById('maxPositions');
+        const stopLossInput = document.getElementById('stopLoss');
+        const takeProfitInput = document.getElementById('takeProfit');
+        const symbolsInput = document.getElementById('symbols');
+
+        const toast = document.getElementById('toast');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const statusBadge = document.getElementById('statusBadge');
+        const tradesBodyEl = document.getElementById('trades-body');
+        const decisionsContainerEl = document.getElementById('decisions-container');
+        const exportTradesBtn = document.getElementById('exportTrades');
+        const refreshDecisionsBtn = document.getElementById('refreshDecisions');
+
+        function showToast(message, isError = false) {
+            toast.textContent = message;
+            toast.className = `absolute bottom-4 right-4 p-3 bg-${isError ? 'red-600' : 'green-600'} text-white rounded-lg z-50`;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+
+        async function loadStats() {
+            try {
+                const [statusResp, tradesResp, equityResp] = await Promise.all([
+                    fetch('/api/status'),
+                    fetch('/api/trades?limit=50'),
+                    fetch('/api/equity')
+                ]);
+                const [statusData, tradesData, equityData] = await Promise.all([
+                    statusResp.json(), 
+                    tradesResp.json(), 
+                    equityResp.json()
+                ]);
+                
+                updateStatusBadge(statusData.status || 'UNKNOWN');
+                
+                // Portfolio data structure from API
+                const portfolio = statusData.portfolio || {};
+                const portfolioValue = portfolio.value || 100;
+                const availableCash = portfolio.cash || 100;
+                const position = portfolio.position || 0;
+                
+                // Calculate P&L from initial 100
+                const pnl = portfolioValue - 100;
+                
+                // Update metrics
+                metrics[0].textContent = `$${portfolioValue.toFixed(2)}`;
+                metrics[1].textContent = `$${availableCash.toFixed(2)}`;
+                metrics[2].textContent = `${position ? parseInt(position) : '0'} shares`;
+                
+                const pnlPct = portfolioValue > 0 ? (pnl / portfolioValue * 100) : 0;
+                metrics[3].textContent = `$${pnl.toFixed(2)} (${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)`;
+                metrics[3].className = `metric text-2xl font-bold text-white ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`;
+                
+                // Trades
+                const trades = tradesData.trades || tradesData || [];
+                const tradesCountEl = document.querySelectorAll('.metric')[4]; // Total Trades
+                const winRateEl = document.querySelectorAll('.metric')[5]; // Win Rate
+                const avgTradeSizeEl = document.querySelectorAll('.metric')[6]; // Avg Trade Size
+                
+                tradesCountEl.textContent = trades.length || 0;
+                
+                // Calculate win rate from trades
+                let winRate = 0;
+                if (trades.length > 0) {
+                    const wins = trades.filter(t => t.pnl && t.pnl > 0).length;
+                    winRate = (wins / trades.length * 100);
+                }
+                winRateEl.textContent = winRate.toFixed(2);
+                winRateEl.className = `metric text-2xl font-bold text-white ${winRate >= 50 ? 'text-green-400' : 'text-red-400'}`;
+                
+                // Average trade size
+                const avgSize = trades.length > 0 ? 
+                    trades.reduce((sum, t) => sum + (t.size || 0), 0) / trades.length : 0;
+                avgTradeSizeEl.textContent = avgSize.toFixed(4);
+                
+                // Last update
+                const lastUpdateEl = document.getElementById('lastUpdate');
+                if (lastUpdateEl) {
+                    lastUpdateEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+                }
+                
+                updateEquityChart(equityData.equity || []);
+                updateTradesTable(trades);
+                loadRecentDecisions();
+                
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+                showToast('Failed to update data', true);
+                updateStatusBadge('OFFLINE');
+            }
+        }
+
+        function updateStatusBadge(status) {
+            const badge = document.getElementById('statusBadge');
+            badge.textContent = status.toUpperCase();
+            badge.className = 'mb-4 px-3 py-1 rounded text-sm font-medium inline-block';
+            
+            if (status === 'RUNNING') {
+                badge.classList.add('status-running', 'bg-green-600/20', 'text-green-400');
+            } else if (status === 'STOPPED') {
+                badge.classList.add('status-stopped', 'bg-red-600/20', 'text-red-400');
+            } else {
+                badge.classList.add('status-unknown', 'bg-gray-600/20', 'text-gray-400');
+            }
+        }
+
+        function updateTradesTable(trades) {
+            if (!trades || trades.length === 0) {
+                tradesBodyEl.innerHTML = '<tr class="text-center text-gray-400"><td colspan="7" class="px-3 py-4">No trades yet</td></tr>';
+                return;
+            }
+            const displayedTrades = [...trades].reverse().slice(0, 20);
+            tradesBodyEl.innerHTML = displayedTrades.map(trade => {
+                const time = new Date(trade.time || Date.now()).toLocaleString();
+                const actionClass = trade.action === 'LONG' ? 'bg-blue-600/20 text-blue-400' : 'bg-red-600/20 text-red-400';
+                const actionText = trade.action === 'LONG' ? 'LONG' : 'SHORT';
+                const pnlVal = trade.pnl || 0;
+                const pnlColor = pnlVal >= 0 ? 'text-green-400' : 'text-red-400';
+                const pnlSign = pnlVal >= 0 ? '+' : '';
+                return `<tr class="hover:bg-gray-700"><td class="px-3 py-2 text-xs">${time}</td><td class="px-3 py-2 text-xs"><span class="px-2 py-0.5 rounded text-xs ${actionClass}">${actionText}</span></td><td class="px-3 py-2 text-xs font-mono">${trade.symbol || ''}</td><td class="px-3 py-2 text-xs text-right">$${(trade.price || 0).toFixed(2)}</td><td class="px-3 py-2 text-xs text-right">${(trade.size || 0).toFixed(4)}</td><td class="px-3 py-2 text-xs text-right">$${((trade.price || 0) * (trade.size || 0)).toFixed(2)}</td><td class="px-3 py-2 text-xs text-right ${pnlColor}">${pnlSign}$${Math.abs(pnlVal).toFixed(2)}</td></tr>`;
+            }).join('');
+        }
+
+        function updateEquityChart(equityData) {
+            const ctx = document.getElementById('equityChart').getContext('2d');
+            document.getElementById('chartLoading').classList.add('hidden');
+            
+            if (equityChart) equityChart.destroy();
+            
+            if (!equityData || equityData.length === 0) {
+                equityChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { 
+                        labels: ['No data'], 
+                        datasets: [{ 
+                            label: 'Equity Curve', 
+                            data: [0], 
+                            borderColor: '#60a5fa', 
+                            backgroundColor: 'rgba(96,165,250,0.1)',
+                            tension: 0.3 
+                        }] 
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: { enabled: false }
+                        },
+                        scales: { 
+                            y: { 
+                                display: false 
+                            }, 
+                            x: { 
+                                display: false 
+                            } 
+                        }
+                    }
+                });
+                return;
+            }
+
+            let processedData = [...equityData];
+            const now = Date.now();
+            switch(chartTimeframe) {
+                case '1D': processedData = equityData.filter(p => new Date(p.time || 0).getTime() >= now - 86400000); break;
+                case '1W': processedData = equityData.filter(p => new Date(p.time || 0).getTime() >= now - 604800000); break;
+                case '1M': processedData = equityData.filter(p => new Date(p.time || 0).getTime() >= now - 2592000000); break;
+                case 'ALL': break;
+            }
+            processedData.sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
+            
+            const labels = processedData.map(p => {
+                try { 
+                    return luxon.DateTime.fromISO(p.time).toFormat('MM/dd HH:mm'); 
+                } catch {
+                    return '' 
+                }
+            });
+            const values = processedData.map(p => p.value);
+            const minVal = Math.min(...values); 
+            const maxVal = Math.max(...values); 
+            const padding = (maxVal - minVal) * 0.1 || 1;
+
+            equityChart = new Chart(ctx, {
+                type: 'line',
+                data: { 
+                    labels, 
+                    datasets: [{ 
+                        label: 'Equity', 
+                        data: values, 
+                        borderColor: '#60a5fa', 
+                        backgroundColor: 'rgba(96,165,250,0.15)',
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        borderWidth: 2,
+                        fill: true
+                    }] 
+                },
+                options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: { 
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#60a5fa',
+                            borderWidth: 1,
+                            displayColors: false,
+                            callbacks: { 
+                                label: ctx => `$${ctx.parsed.y.toFixed(2)}`
+                            } 
+                        } 
+                    },
+                    scales: { 
+                        y: { 
+                            min: minVal - padding, 
+                            max: maxVal + padding, 
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        }, 
+                        x: { 
+                            display: true,
+                            title: { display: false }
+                        } 
+                    }
+                }
+            });
+        }
+
+        async function loadRecentDecisions() {
+            try {
+                const resp = await fetch('/api/decision');
+                const data = await resp.json();
+                if (data.decisions?.length) {
+                    decisionsContainerEl.innerHTML = data.decisions.map(d => 
+                        `<div class="text-center text-gray-400 py-2 text-sm rounded bg-gray-700 px-3">${d.replace(/</g, '<')}</div>`
+                    ).join('');
+                } else {
+                    decisionsContainerEl.innerHTML = '<div class="text-center text-gray-400 py-4">No decisions yet</div>';
+                }
+            } catch (error) {
+                decisionsContainerEl.innerHTML = '<div class="text-center text-gray-400 py-4">Error loading decisions</div>';
+            }
+        }
+
+        async function updateConfig() {
+            const config = {
+                risk_per_trade: parseFloat(riskPerTradeInput.value),
+                max_positions: parseInt(maxPositionsInput.value),
+                stop_loss: parseFloat(stopLossInput.value),
+                take_profit: parseFloat(takeProfitInput.value),
+                symbols: symbolsInput.value.split(',').map(s => s.trim()).filter(s => s)
+            };
+
+            if (isNaN(config.risk_per_trade) || config.risk_per_trade <= 0 || config.risk_per_trade > 50) { 
+                showToast('Risk must be 0-50%', true); 
+                return; 
+            }
+            if (isNaN(config.max_positions) || config.max_positions < 1 || config.max_positions > 20) { 
+                showToast('Max positions must be 1-20', true); 
+                return; 
+            }
+            if (isNaN(config.stop_loss) || config.stop_loss <= 0 || config.stop_loss > 100) { 
+                showToast('Stop loss must be 0-100%', true); 
+                return; 
+            }
+            if (isNaN(config.take_profit) || config.take_profit <= 0 || config.take_profit > 200) { 
+                showToast('Take profit must be 0-200%', true); 
+                return; 
+            }
+            if (!config.symbols.length) { 
+                showToast('Symbols required', true); 
+                return; 
+            }
+
+            try {
+                const resp = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    showToast('Configuration saved!', false);
+                    configModal.style.display = 'none';
+                    loadStats(); // Refresh after saving
+                } else {
+                    showToast(`Failed: ${data.error || 'Unknown error'}`, true);
+                }
+            } catch (error) {
+                console.error('Config update failed:', error);
+                showToast('Failed to save config', true);
+            }
+        }
+
+        function setupEventListeners() {
+            configBtn.addEventListener('click', () => {
+                configModal.style.display = 'flex';
+            });
+            configCancel.addEventListener('click', () => {
+                configModal.style.display = 'none';
+            });
+            configSubmit.addEventListener('click', updateConfig);
+            refreshBtn.addEventListener('click', loadStats);
+            exportTradesBtn.addEventListener('click', async () => {
+                            try {
+                                const resp = await fetch('/api/trades?limit=100');
+                                const data = await resp.json();
+                                const trades = data.trades || [];
+                    
+                                const csvContent = [
+                                    ['Time', 'Action', 'Symbol', 'Price', 'Size', 'Value', 'P&L'],
+                                    ...trades.map(t => [
+                                        t.time || '',
+                                        t.action || '',
+                                        t.symbol || '',
+                                        t.price || 0,
+                                        t.size || 0,
+                                        (t.price || 0) * (t.size || 0),
+                                        t.pnl || 0
+                                    ])
+                                ].map(e => e.join(',')).join('\n');
+                    
+                                const blob = new Blob([csvContent], { type: 'text/csv' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `trades-${new Date().toISOString().slice(0,10)}.csv`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                                showToast('Exported trades CSV', false);
+                            } catch (error) {
+                                console.error('Export failed:', error);
+                                showToast('Failed to export trades', true);
+                            }
+                        });
+            
+            Object.keys(chartTimeframeButtons || {}).forEach(tf => {
+                if (chartTimeframeButtons[tf]) {
+                    chartTimeframeButtons[tf].addEventListener('click', () => {
+                        chartTimeframe = tf;
+                        loadStats();
+                    });
+                }
+            });
+        }
+
+        function startAutoRefresh() { 
+            setInterval(loadStats, 5000); 
+        }
+
+        // Chart timeframe buttons
+        const chartTimeframeButtons = {
+            '1D': document.getElementById('chartTimeframe1D'),
+            '1W': document.getElementById('chartTimeframe1W'),
+            '1M': document.getElementById('chartTimeframe1M'),
+            'ALL': document.getElementById('chartTimeframeALL')
+        };
+
+        async function initialize() {
+            loadStats();
+            setupEventListeners();
+            startAutoRefresh();
+        }
+
+        initialize();
+    </script>
+</body>
+</html>

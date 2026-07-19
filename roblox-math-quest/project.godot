@@ -1,0 +1,32 @@
+[application]
+
+config/name="Roblox Math Quest"
+config/icon="icon.png"
+run/main_scene="res://Main.tscn"
+config/version_major=1
+config/version_minor=0
+config/version_patch=0
+config/version_string="1.0.0-stable"
+config/author=""
+config/url=""
+
+[input_map]
+
+ui_up=[ "w", "up" ]
+ui_down=[ "s", "down" ]
+ui_left=[ "a", "left" ]
+ui_right=[ "d", "right" ]
+ui_accept=[ "space", "enter", "kp_enter", "kp_plus" ]
+ui_cancel=[ "escape", "backspace", "kp_minus" ]
+ui_focus_next=[ "tab" ]
+ui_focus_prev=[ "k_tab" ]
+ui_accept_dialog=[ "enter" ]
+
+[rendering]
+
+renderer/rendering_driver="GLES2"
+
+[autoload]
+
+GameManager="res://Autoload/GameManager.gd"
+SaveManager="res://Autoload/SaveManager.gd"

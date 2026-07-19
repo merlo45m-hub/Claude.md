@@ -1,0 +1,205 @@
+{
+  "consolidation_result": {
+    "additionalProperties": false,
+    "properties": {
+      "tags_to_add": {
+        "description": "New broader tags to create and add",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "description": "Name of the tag to add",
+              "type": "string"
+            },
+            "parent_name": {
+              "description": "Name of parent tag, or empty string for top-level categories",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "parent_name"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "tags_to_remove": {
+        "description": "Names of tags to remove",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "tags_to_remove",
+      "tags_to_add"
+    ],
+    "type": "object"
+  },
+  "extraction_result": {
+    "additionalProperties": false,
+    "properties": {
+      "tags": {
+        "description": "Tags to apply to this text",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "description": "Name of the tag to apply",
+              "type": "string"
+            },
+            "parent_name": {
+              "description": "Name of parent tag, or empty string for top-level categories",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "parent_name"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "tags"
+    ],
+    "type": "object"
+  },
+  "merge_result": {
+    "additionalProperties": false,
+    "properties": {
+      "merges": {
+        "description": "List of tag pairs to merge",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "loser_name": {
+              "description": "Name of the tag to merge into the winner and delete",
+              "type": "string"
+            },
+            "reason": {
+              "description": "Brief explanation for why these tags should be merged",
+              "type": "string"
+            },
+            "winner_name": {
+              "description": "Name of the tag that should survive (canonical name)",
+              "type": "string"
+            }
+          },
+          "required": [
+            "winner_name",
+            "loser_name",
+            "reason"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "merges"
+    ],
+    "type": "object"
+  },
+  "report_finding_result": {
+    "additionalProperties": false,
+    "properties": {
+      "citations_used": {
+        "description": "List of citation numbers actually used.",
+        "items": {
+          "type": "integer"
+        },
+        "type": "array"
+      },
+      "finding_content": {
+        "description": "The finding in markdown, with [N] citation markers.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "finding_content",
+      "citations_used"
+    ],
+    "type": "object"
+  },
+  "wiki_generation_result": {
+    "additionalProperties": false,
+    "properties": {
+      "article_content": {
+        "description": "The full wiki article in markdown format with [N] citations",
+        "type": "string"
+      },
+      "citations_used": {
+        "description": "List of citation numbers actually used in the article",
+        "items": {
+          "type": "integer"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "article_content",
+      "citations_used"
+    ],
+    "type": "object"
+  },
+  "wiki_update_section_ops": {
+    "additionalProperties": false,
+    "properties": {
+      "citations_used": {
+        "description": "List of citation numbers referenced across the operations.",
+        "items": {
+          "type": "integer"
+        },
+        "type": "array"
+      },
+      "operations": {
+        "description": "List of section operations to apply to the article, in order. Return a single operation with op=\"NoChange\" if nothing needs to change.",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "after_heading": {
+              "description": "For InsertSection only: exact existing heading to insert AFTER, or empty string to append at end of article. For all other ops: empty string.",
+              "type": "string"
+            },
+            "content": {
+              "description": "New markdown content for the operation. Only NoChange may use empty content. AppendToSection, ReplaceSection, and InsertSection must provide non-empty markdown content with citations.",
+              "type": "string"
+            },
+            "heading": {
+              "description": "For AppendToSection/ReplaceSection: exact existing heading to target. For InsertSection: the new section's heading. For NoChange: empty string.",
+              "type": "string"
+            },
+            "op": {
+              "description": "Operation type.",
+              "enum": [
+                "NoChange",
+                "AppendToSection",
+                "ReplaceSection",
+                "InsertSection"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "heading",
+            "after_heading",
+            "content"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "operations",
+      "citations_used"
+    ],
+    "type": "object"
+  }
+}

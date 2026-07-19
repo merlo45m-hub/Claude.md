@@ -1,0 +1,189 @@
+import { App, PluginSettingTab, Setting, Notice } from "obsidian";
+import type AtomicPlugin from "./main";
+
+export interface AtomicSettings {
+  serverUrl: string;
+  authToken: string;
+  databaseName: string;
+  vaultName: string;
+  autoSync: boolean;
+  syncDebounceMs: number;
+  excludePatterns: string[];
+  syncFolderTags: boolean;
+  deleteOnRemove: boolean;
+}
+
+export const DEFAULT_SETTINGS: AtomicSettings = {
+  serverUrl: "http://localhost:8080",
+  authToken: "",
+  databaseName: "",
+  vaultName: "",
+  autoSync: true,
+  syncDebounceMs: 2000,
+  // `Vault.configDir` (e.g. `.obsidian`) and `.trash` are always excluded at
+  // runtime — see `SyncEngine.shouldExclude` — so we only seed the
+  // user-editable list with patterns for directories Obsidian can't infer.
+  excludePatterns: [".git/**", "node_modules/**"],
+  syncFolderTags: true,
+  deleteOnRemove: false,
+};
+
+export class AtomicSettingTab extends PluginSettingTab {
+  plugin: AtomicPlugin;
+
+  constructor(app: App, plugin: AtomicPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+
+    new Setting(containerEl).setName("Connection").setHeading();
+
+    new Setting(containerEl)
+      .setName("Server URL")
+      .setDesc("URL of your server instance")
+      .addText((text) =>
+        text
+          .setPlaceholder("Example: localhost:8080")
+          .setValue(this.plugin.settings.serverUrl)
+          .onChange(async (value) => {
+            this.plugin.settings.serverUrl = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Auth token")
+      .setDesc("Bearer token for API authentication")
+      .addText((text) => {
+        text
+          .setPlaceholder("Enter your API token")
+          .setValue(this.plugin.settings.authToken)
+          .onChange(async (value) => {
+            this.plugin.settings.authToken = value;
+            await this.plugin.saveSettings();
+          });
+        text.inputEl.type = "password";
+      });
+
+    let dbDebounce: ReturnType<Window["setTimeout"]> | null = null;
+    new Setting(containerEl)
+      .setName("Database")
+      .setDesc("Name of the database to sync with (leave empty for default)")
+      .addText((text) =>
+        text
+          .setPlaceholder("Default")
+          .setValue(this.plugin.settings.databaseName)
+          .onChange(async (value) => {
+            this.plugin.settings.databaseName = value;
+            await this.plugin.saveSettings();
+            if (dbDebounce) activeWindow.clearTimeout(dbDebounce);
+            dbDebounce = activeWindow.setTimeout(() => {
+              this.plugin.syncEngine.resetAndResync().catch((e) =>
+                console.error("Atomic: resetAndResync failed:", e)
+              );
+            }, 1500);
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Test connection")
+      .setDesc("Verify that the server is reachable and the token is valid")
+      .addButton((button) =>
+        button.setButtonText("Test").onClick(async () => {
+          try {
+            await this.plugin.client.testConnection();
+            new Notice("Connected successfully!");
+          } catch (e) {
+            new Notice(`Connection failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        })
+      );
+
+    new Setting(containerEl).setName("Sync").setHeading();
+
+    new Setting(containerEl)
+      .setName("Vault name")
+      .setDesc("Identifier used in each atom's source URL (defaults to vault name)")
+      .addText((text) =>
+        text
+          .setPlaceholder(this.app.vault.getName())
+          .setValue(this.plugin.settings.vaultName)
+          .onChange(async (value) => {
+            this.plugin.settings.vaultName = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Auto sync")
+      .setDesc("Automatically sync notes when they change")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.autoSync).onChange(async (value) => {
+          this.plugin.settings.autoSync = value;
+          await this.plugin.saveSettings();
+          if (value) {
+            this.plugin.syncEngine.startWatching();
+          } else {
+            this.plugin.syncEngine.stopWatching();
+          }
+        })
+      );
+
+    new Setting(containerEl)
+      .setName("Sync debounce (ms)")
+      .setDesc("Wait this long after the last edit before syncing (default: 2000)")
+      .addText((text) =>
+        text
+          .setPlaceholder("2000")
+          .setValue(String(this.plugin.settings.syncDebounceMs))
+          .onChange(async (value) => {
+            const num = parseInt(value, 10);
+            if (!isNaN(num) && num >= 500) {
+              this.plugin.settings.syncDebounceMs = num;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Sync folder tags")
+      .setDesc("Create hierarchical tags from folder structure")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.syncFolderTags).onChange(async (value) => {
+          this.plugin.settings.syncFolderTags = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName("Delete on remove")
+      .setDesc("Remove the synced atom when the note is deleted from the vault")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.deleteOnRemove).onChange(async (value) => {
+          this.plugin.settings.deleteOnRemove = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    const configDir = this.app.vault.configDir;
+    new Setting(containerEl)
+      .setName("Exclude patterns")
+      .setDesc(`Glob patterns to exclude from sync, one per line. The vault config folder (${configDir}) and .trash are always excluded.`)
+      .addTextArea((text) =>
+        text
+          .setPlaceholder(".git/**\nnode_modules/**")
+          .setValue(this.plugin.settings.excludePatterns.join("\n"))
+          .onChange(async (value) => {
+            this.plugin.settings.excludePatterns = value
+              .split("\n")
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0);
+            await this.plugin.saveSettings();
+          })
+      );
+  }
+}

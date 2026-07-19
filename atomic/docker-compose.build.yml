@@ -1,0 +1,12 @@
+# Override to build from source instead of pulling prebuilt images.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.build.yml up --build
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server.dockerfile
+
+  web:
+    build:
+      context: .
+      dockerfile: web.dockerfile

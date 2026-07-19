@@ -1,0 +1,124 @@
+[gd_scene load_steps=5 format=3 uid="UID123456"]
+
+[ext_resource path="res://scripts/Main.gd" type="Script" id=1]
+
+[node name="Main" type="Node2D"]
+script = ExtResource( 1 )
+
+# UI Layer
+[node name="UI" type="CanvasLayer"]
+    [node name="XPBar" type="TextureProgressBar" parent="."]
+        anchor_left = 0.0
+        anchor_top = 0.0
+        anchor_right = 1.0
+        anchor_bottom = 0.05
+        margin_left = 20
+        margin_top = 20
+        margin_right = 20
+        margin_bottom = 20
+        texture_progress = SubResource( 0 )
+    [node name="LevelLabel" type="Label" parent="."]
+        anchor_left = 0.0
+        anchor_top = 0.0
+        margin_left = 20
+        margin_top = 60
+        text = "Level: 1"
+    [node name="CoinsLabel" type="Label" parent="."]
+        anchor_right = 1.0
+        anchor_top = 0.0
+        margin_right = 20
+        margin_top = 20
+        text = "Coins: 0"
+    [node name="StreakLabel" type="Label" parent="."]
+        anchor_right = 1.0
+        anchor_top = 0.0
+        margin_right = 20
+        margin_top = 60
+        text = "Streak: 0"
+
+# Game World
+[node name="GameWorld" type="Node2D" parent="."]
+
+# Level-up overlay (hidden by default)
+[node name="LevelUpOverlay" type="CanvasLayer" parent="."]
+    visible = false
+    [node name="LevelUpLabel" type="Label" parent="."]
+        anchor_center = 0.5
+        anchor_top = 0.4
+        margin_top = -50
+        horizontal_alignment = 1
+        text = "LEVEL UP!"
+        font_size = 48
+        modulate = Color(1, 0.8, 0, 1)
+    [node name="Particles" type="GPUParticles2D" parent="."]
+        anchor_center = 0.5
+        anchor_top = 0.5
+        margin_top = 50
+        texture = SubResource( 1 )
+        amount = 50
+        lifetime = 1.5
+        speed_scale = 2
+        [subresource type="GradientTexture2D" id=0]
+            gradient = SubResource( 2 )
+        [subresource type="GradientTexture2D" id=1]
+            gradient = SubResource( 3 )
+    [subresource type="Gradient" id=2]
+        offset = 0.0
+        color = Color(1, 0.8, 0, 1)
+        [subresource id=3]
+        offset = 1.0
+        color = Color(1, 0.8, 0, 0)
+    [subresource type="Gradient" id=3]
+        offset = 0.0
+        color = Color(1, 0.8, 0, 1)
+        [subresource id=4]
+        offset = 1.0
+        color = Color(1, 0.8, 0, 0)
+
+# Resources
+[subresource type="StreamTexture" id=0]
+    stream = SubResource( 5 )
+[subresource type="StreamTexture" id=1]
+    stream = SubResource( 6 )
+[subresource type="Gradient" id=2]
+    offset = 0.0
+    color = Color(1, 1, 1, 1)
+    [subresource id=7]
+    offset = 1.0
+    color = Color(1, 1, 1, 0)
+[subresource type="Gradient" id=3]
+    offset = 0.0
+    color = Color(1, 1, 1, 1)
+    [subresource id=8]
+    offset = 1.0
+    color = Color(1, 1, 1, 0)
+[subresource type="Stream" id=5]
+    [subresource type="Image" id=9]
+        data = Image.create_from_width_height(16, 16, false, Image.FORMAT_L8)
+        # Simple white circle texture for XP bar
+        for x in range(16):
+            for y in range(16):
+                var dx = x - 7.5
+                var dy = y - 7.5
+                var dist = sqrt(dx*dx + dy*dy)
+                if dist < 7.5:
+                    Image.set_pixel(id=9, x=x, y=y, color=Color(1, 1, 1, 1))
+                else:
+                    Image.set_pixel(id=9, x=x, y=y, color=Color(0, 0, 0, 0))
+[subresource type="Stream" id=6]
+    [subresource type="Image" id=10]
+        data = Image.create_from_width_height(64, 64, false, Image.FORMAT_RGBA8)
+        # Simple white dot for particles
+        for x in range(64):
+            for y in range(64):
+                var dx = x - 31.5
+                var dy = y - 31.5
+                var dist = sqrt(dx*dx + dy*dy)
+                if dist < 5:
+                    Image.set_pixel(id=10, x=x, y=y, color=Color(1, 1, 1, 1))
+                else:
+                    Image.set_pixel(id=10, x=x, y=y, color=Color(0, 0, 0, 0))
+  
+                    [subresource type="AudioStreamPlayer" id=4]
+                    stream = SubResource("AudioStreamWav", 11)
+                    data = "RIFF$\\x00\\x00\\x00WAVEfmt \\x10\\x00\\x00\\x00\\x01\\x00\\x01\\x00D\\xac\\x00\\x00\\x88\\x58\\x01\\x00\\x02\\x00\\x10\\x00data\\x00\\x00\\x00\\x00"

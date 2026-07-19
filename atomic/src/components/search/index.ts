@@ -1,0 +1,2 @@
+export { SemanticSearch } from './SemanticSearch';
+

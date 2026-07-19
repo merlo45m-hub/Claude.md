@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  trader:
+    build: .
+    container_name: ai-stock-trader
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+    command: [ "python3", "-u", "/app/unified_strategy.py" ]
+    networks:
+      - trading-net
+
+  dashboard:
+    image: traefik:v2.11
+    container_name: traefik-proxy
+    restart: unless-stopped
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80)"
+      - "--entrypoints.websecure.address=:443)"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=${LETSENCRYPT_EMAIL:-admin@example.com}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--api.insecure=true"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+    networks:
+      - trading-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.trading.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.trading.entrypoints=web"
+      - "traefik.http.routers.trading-secure.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.trading-secure.entrypoints=websecure"
+      - "traefik.http.routers.trading-secure.tls.certresolver=myresolver"
+
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: ai-stock-dashboard
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+      - /root/.config/context-dev:/root/.config/context-dev:ro
+      - /root/ai_stock_trader/.context_dev_brand_cache.json:/app/.context_dev_brand_cache.json:ro
+    environment:
+      - CONTEXT_DEV_CACHE_PATH=/app/.context_dev_brand_cache.json
+    ports:
+      - "8085:8084"
+    expose:
+      - "8084"
+    networks:
+      - trading-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/`)"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+
+networks:
+  trading-net:
+    driver: bridge

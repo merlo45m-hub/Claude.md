@@ -1,0 +1,259 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    permissions: write-all
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target universal-apple-darwin
+          - platform: ubuntu-22.04
+            args: ''
+          - platform: windows-latest
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libgtk-3-dev \
+            mold
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build sidecars (macOS universal)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          npm run build:server -- --target aarch64-apple-darwin
+          npm run build:server -- --target x86_64-apple-darwin
+          lipo -create \
+            src-tauri/binaries/atomic-server-aarch64-apple-darwin \
+            src-tauri/binaries/atomic-server-x86_64-apple-darwin \
+            -output src-tauri/binaries/atomic-server-universal-apple-darwin
+          npm run build:mcp-bridge -- --target aarch64-apple-darwin
+          npm run build:mcp-bridge -- --target x86_64-apple-darwin
+          lipo -create \
+            src-tauri/binaries/atomic-mcp-bridge-aarch64-apple-darwin \
+            src-tauri/binaries/atomic-mcp-bridge-x86_64-apple-darwin \
+            -output src-tauri/binaries/atomic-mcp-bridge-universal-apple-darwin
+
+      - name: Build sidecars (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          npm run build:server -- --target x86_64-unknown-linux-gnu
+          npm run build:mcp-bridge -- --target x86_64-unknown-linux-gnu
+
+      - name: Build sidecars (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          npm run build:server -- --target x86_64-pc-windows-msvc
+          npm run build:mcp-bridge -- --target x86_64-pc-windows-msvc
+
+      - name: Import Apple certificate
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          echo -n "$APPLE_CERTIFICATE" | base64 --decode -o $CERTIFICATE_PATH
+
+          security create-keychain -p "" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "" $KEYCHAIN_PATH
+
+          security import $CERTIFICATE_PATH -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Extract release notes from CHANGELOG
+        id: changelog
+        shell: bash
+        run: |
+          if [[ ! -f CHANGELOG.md ]]; then
+            notes='See the assets to download this version and install.'
+          else
+            # Print everything from the first `## ` section up to (but not
+            # including) the second one. This gives us the current release's
+            # entry as authored by scripts/build-release.js.
+            notes=$(awk '
+              /^## / { count++ }
+              count == 2 { exit }
+              count == 1 { print }
+            ' CHANGELOG.md)
+            if [[ -z "$notes" ]]; then
+              notes='See the assets to download this version and install.'
+            else
+              notes="${notes}"$'\n\n---\n\nDownload the assets below to install.'
+            fi
+          fi
+          {
+            echo 'notes<<CHANGELOG_EOF'
+            echo "$notes"
+            echo 'CHANGELOG_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_ID: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ matrix.platform == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Atomic ${{ github.ref_name }}'
+          releaseBody: ${{ steps.changelog.outputs.notes }}
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+
+  publish-openapi:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # .cargo/config.toml pins the mold linker for x86_64-linux, so it must
+      # be available on the runner or Cargo link steps fail with "cannot find 'ld'".
+      - name: Install mold linker
+        run: sudo apt-get update && sudo apt-get install -y mold
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-openapi-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-openapi-
+            ${{ runner.os }}-cargo-
+
+      - name: Generate OpenAPI JSON
+        shell: bash
+        run: |
+          mkdir -p openapi-site
+          version="${GITHUB_REF_NAME#v}"
+          ATOMIC_OPENAPI_VERSION="$version" \
+            cargo run -p atomic-server --bin export-openapi -- openapi-site/openapi.json
+          cp openapi-site/openapi.json "openapi-site/${GITHUB_REF_NAME}.json"
+          cat > openapi-site/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <title>Atomic OpenAPI</title>
+            </head>
+            <body>
+              <h1>Atomic OpenAPI</h1>
+              <p><a href="./openapi.json">Latest release OpenAPI JSON</a></p>
+            </body>
+          </html>
+          HTML
+
+      - name: Upload OpenAPI JSON to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${GITHUB_REF_NAME}" openapi-site/openapi.json --clobber
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: openapi-site
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  notify-discord:
+    needs: [build, publish-openapi]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Post changelog to Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          notes=$(awk '
+            /^## / { count++ }
+            count == 2 { exit }
+            count == 1 { print }
+          ' CHANGELOG.md)
+          release_url="https://github.com/${REPO}/releases/tag/${TAG}"
+          content=$(printf '**Atomic %s** released — %s\n\n%s' "$TAG" "$release_url" "$notes")
+          # Discord content cap is 2000 chars; leave headroom for the ellipsis.
+          if [ ${#content} -gt 1900 ]; then
+            content="${content:0:1900}…"
+          fi
+          jq -n --arg content "$content" '{content: $content}' \
+            | curl -sS --fail -H "Content-Type: application/json" \
+                -X POST -d @- "$DISCORD_WEBHOOK_URL"

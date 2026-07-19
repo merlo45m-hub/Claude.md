@@ -1,0 +1,200 @@
+import { Plugin, WorkspaceLeaf } from "obsidian";
+import { AtomicClient } from "./atomic-client";
+import { AtomicSettingTab, DEFAULT_SETTINGS, type AtomicSettings } from "./settings";
+import { SyncEngine } from "./sync-engine";
+import { SyncState, type SyncStateData } from "./sync-state";
+import { SearchModal } from "./search-modal";
+import { SimilarView, SIMILAR_VIEW_TYPE } from "./similar-view";
+import { WikiView, WIKI_VIEW_TYPE } from "./wiki-view";
+import { ChatView, CHAT_VIEW_TYPE } from "./chat-view";
+import { AtomicWebSocket } from "./ws-client";
+import { OnboardingModal } from "./onboarding-modal";
+import { CanvasView, CANVAS_VIEW_TYPE } from "./canvas-view";
+
+interface PluginData {
+  settings: AtomicSettings;
+  syncState?: SyncStateData;
+}
+
+export default class AtomicPlugin extends Plugin {
+  settings: AtomicSettings = DEFAULT_SETTINGS;
+  client: AtomicClient = new AtomicClient(this.settings);
+  ws: AtomicWebSocket = new AtomicWebSocket(this.settings);
+  syncEngine!: SyncEngine;
+  private syncState: SyncState = new SyncState();
+
+  async onload(): Promise<void> {
+    await this.loadSettings();
+    this.client = new AtomicClient(this.settings);
+    this.ws = new AtomicWebSocket(this.settings);
+
+    const data = (await this.loadData()) as PluginData | null;
+    this.syncEngine = new SyncEngine(
+      this.app,
+      this.client,
+      this.settings,
+      data?.syncState,
+      () => this.savePluginData()
+    );
+
+    this.addSettingTab(new AtomicSettingTab(this.app, this));
+
+    // Commands
+    this.addCommand({
+      id: "semantic-search",
+      name: "Semantic search",
+      callback: () => new SearchModal(this.app, this.client).open(),
+    });
+
+    this.addCommand({
+      id: "sync-current-note",
+      name: "Sync current note",
+      editorCheckCallback: (checking, _editor, ctx) => {
+        if (!ctx.file) return false;
+        if (!checking) void this.syncEngine.syncCurrentFile();
+        return true;
+      },
+    });
+
+    this.addCommand({
+      id: "sync-vault",
+      name: "Sync entire vault",
+      callback: () => { void this.syncEngine.syncAll(); },
+    });
+
+    this.addCommand({
+      id: "toggle-auto-sync",
+      name: "Toggle auto sync",
+      callback: () => this.syncEngine.toggleAutoSync(),
+    });
+
+    this.addCommand({
+      id: "open-similar-notes",
+      name: "Open similar notes",
+      editorCheckCallback: (checking, _editor, ctx) => {
+        if (!ctx.file) return false;
+        if (!checking) void this.activateView(SIMILAR_VIEW_TYPE);
+        return true;
+      },
+    });
+
+    this.addCommand({
+      id: "open-wiki",
+      name: "Open wiki",
+      callback: () => { void this.activateView(WIKI_VIEW_TYPE); },
+    });
+
+    this.addCommand({
+      id: "open-chat",
+      name: "Open chat",
+      callback: () => { void this.activateView(CHAT_VIEW_TYPE); },
+    });
+
+    this.addCommand({
+      id: "open-canvas",
+      name: "Open knowledge graph canvas",
+      callback: () => { void this.activateCanvasView(); },
+    });
+
+    this.addCommand({
+      id: "setup-wizard",
+      name: "Setup wizard",
+      callback: () => new OnboardingModal(this.app, this).open(),
+    });
+
+    // Register sidebar views
+    this.registerView(SIMILAR_VIEW_TYPE, (leaf) => {
+      const syncState = SyncState.fromJSON(this.syncEngine.getSyncStateData());
+      return new SimilarView(leaf, this.client, () => syncState);
+    });
+
+    this.registerView(WIKI_VIEW_TYPE, (leaf) => new WikiView(
+      leaf,
+      this.client,
+      () => this.settings.vaultName || this.app.vault.getName(),
+    ));
+
+    this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(
+      leaf,
+      this.client,
+      this.ws,
+      () => this.settings.vaultName || this.app.vault.getName(),
+    ));
+
+    this.registerView(CANVAS_VIEW_TYPE, (leaf) => new CanvasView(leaf, this));
+
+    // Auto-sync if enabled (skip if not yet configured)
+    if (this.settings.authToken && this.settings.autoSync) {
+      this.syncEngine.startWatching();
+    }
+
+    // First-run: open onboarding wizard if no auth token configured.
+    // Defer one tick so Obsidian has finished initial workspace layout.
+    if (!this.settings.authToken) {
+      this.app.workspace.onLayoutReady(() => {
+        new OnboardingModal(this.app, this).open();
+      });
+    }
+
+    // Status bar
+    const statusEl = this.addStatusBarItem();
+    statusEl.addClass("atomic-status");
+    statusEl.createSpan({ cls: "atomic-status-dot connected" });
+    statusEl.createSpan({ text: "Atomic" });
+  }
+
+  onunload(): void {
+    this.syncEngine.stopWatching();
+    this.ws.close();
+  }
+
+  async loadSettings(): Promise<void> {
+    const data = (await this.loadData()) as PluginData | null;
+    this.settings = { ...DEFAULT_SETTINGS, ...(data?.settings ?? {}) };
+  }
+
+  async saveSettings(): Promise<void> {
+    this.ws.updateSettings(this.settings);
+    await this.savePluginData();
+  }
+
+  private async savePluginData(): Promise<void> {
+    const data: PluginData = {
+      settings: this.settings,
+      syncState: this.syncEngine.getSyncStateData(),
+    };
+    await this.saveData(data);
+  }
+
+  private async activateCanvasView(): Promise<void> {
+    const { workspace } = this.app;
+    const existing = workspace.getLeavesOfType(CANVAS_VIEW_TYPE);
+    if (existing.length > 0) {
+      workspace.setActiveLeaf(existing[0], { focus: true });
+      return;
+    }
+    const leaf = workspace.getLeaf("tab");
+    await leaf.setViewState({ type: CANVAS_VIEW_TYPE, active: true });
+    workspace.setActiveLeaf(leaf, { focus: true });
+  }
+
+  private async activateView(viewType: string): Promise<void> {
+    const { workspace } = this.app;
+
+    let leaf: WorkspaceLeaf | null = null;
+    const leaves = workspace.getLeavesOfType(viewType);
+
+    if (leaves.length > 0) {
+      leaf = leaves[0];
+    } else {
+      leaf = workspace.getRightLeaf(false);
+      if (leaf) {
+        await leaf.setViewState({ type: viewType, active: true });
+      }
+    }
+
+    if (leaf) {
+      workspace.setActiveLeaf(leaf, { focus: true });
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "obsidian": {
+    "vault_path": "/root/ObsidianVault",
+    "knowledge_folders": {
+      "daily": "/root/ObsidianVault/daily",
+      "inbox": "/root/ObsidianVault/inbox",
+      "projects": "/root/ObsidianVault/projects",
+      "logseq": "/root/ObsidianVault/logs",
+      "tags": "/root/ObsidianVault/05 AI Memory",
+      "templates": "/root/ObsidianVault/templates",
+      "references": "/root/ObsidianVault/03 Resources"
+    },
+    "auto_tag_prefix": "#hermes/",
+    "capture_format": "yaml",
+    "sync_enabled": true,
+    "sync_interval": 300
+  },
+  "tools": {
+    "obsidian_uri": "/root/ObsidianVault/.hermes_uri_handler.py",
+    "capture_tool": "terminal_to_obsidian"
+  }
+}

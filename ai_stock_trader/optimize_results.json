@@ -1,0 +1,32 @@
+{
+  "best_score": 12.9,
+  "best_params": {
+    "sma_fast": 10,
+    "sma_slow": 50,
+    "rsi_period": 14,
+    "rsi_upper": 75,
+    "rsi_lower": 25,
+    "stop_loss": 0.07,
+    "take_profit": 0.08,
+    "risk_per_trade": 0.02
+  },
+  "history": [
+    {
+      "score": 12.9,
+      "avg_return": 0.64,
+      "avg_sharpe": 4.129,
+      "avg_drawdown": 0.26,
+      "params": {
+        "sma_fast": 10,
+        "sma_slow": 50,
+        "rsi_period": 14,
+        "rsi_upper": 75,
+        "rsi_lower": 25,
+        "stop_loss": 0.07,
+        "take_profit": 0.08,
+        "risk_per_trade": 0.02
+      },
+      "timestamp": "2026-07-16T00:33:18.472431"
+    }
+  ]
+}

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0f">
+<link rel="manifest" href="/static/manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/static/sw.js').catch(()=>{});
+}
+</script>
+<title>AI Trader</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, sans-serif;
+    background: #0a0a0f; color: #f1f5f9; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    min-height: 100vh;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 10px 14px; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 6px 0 14px; }
+  header h1 { font-size: 22px; color: #f1f5f9; font-weight: 700; letter-spacing: -0.5px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: #00c853; color: #000; }
+  .badge.down { background: #ff1744; color: #fff; }
+  .card { background: #13131f; border-radius: 16px; padding: 16px; margin-bottom: 10px; border: 1px solid #1e1e30; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .value { font-size: 26px; font-weight: 800; margin-top: 2px; letter-spacing: -0.5px; }
+  .value.sm { font-size: 20px; }
+  .pos { color: #00c853; } .neg { color: #ff1744; }
+  .sec-title { font-size: 13px; color: #9ca3af; font-weight: 600; margin: 2px 0 10px; text-transform: uppercase; letter-spacing: .05em; }
+  .trade { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #1e1e30; }
+  .trade:last-child { border-bottom: none; }
+  .sym { font-weight: 700; font-size: 15px; color: #f1f5f9; }
+  .tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; margin-left: 6px; }
+  .tag.LONG { background: rgba(0,200,83,0.15); color: #00c853; }
+  .tag.SHORT { background: rgba(255,23,68,0.15); color: #ff1744; }
+  .tag.BUY { background: rgba(0,200,83,0.15); color: #00c853; }
+  .tag.SELL { background: rgba(255,23,68,0.15); color: #ff1744; }
+  .tag.EXIT { background: rgba(107,114,128,0.2); color: #9ca3af; }
+  .meta { font-size: 11px; color: #6b7280; text-align: right; }
+  .meta b { color: #e5e7eb; font-weight: 600; }
+  .pill { display:inline-block; font-size:11px; background:#1e1e30; color:#9ca3af; padding:3px 10px; border-radius:999px; margin:2px 4px 2px 0; }
+  .foot { text-align: center; font-size: 11px; color: #4b5563; padding: 14px 0 24px; }
+  .foot .dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:#00c853; margin-right:5px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .ticker-input { flex:1; background:#1a1a2e; border:1px solid #2a2a40; border-radius:10px; padding:10px 12px; color:#f1f5f9; font-size:14px; outline:none; }
+  .ticker-input:focus { border-color:#00c853; }
+  .ticker-tag { cursor:pointer; display:inline-block; font-size:11px; background:#1a2a1e; color:#00c853; padding:3px 10px; border-radius:999px; margin:2px 4px 2px 0; font-weight:600; }
+  .suggest-btn { background:#1e1e30; border:none; border-radius:8px; padding:6px 12px; color:#9ca3af; font-size:11px; cursor:pointer; margin:2px 3px 2px 0; font-weight:500; }
+  .suggest-btn:active { background:#2a2a40; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>AI Trader</h1>
+    <span id="status" class="badge">...</span>
+  </header>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="label">Portfolio</div>
+      <div class="value" id="v-port">$--</div>
+    </div>
+    <div class="card">
+      <div class="label">Cash</div>
+      <div class="value sm" id="v-cash">$--</div>
+    </div>
+    <div class="card">
+      <div class="label">P&amp;L</div>
+      <div class="value sm" id="v-pnl">--</div>
+    </div>
+    <div class="card">
+      <div class="label">Trades</div>
+      <div class="value sm" id="v-count">--</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">Recent Trades</div>
+    <div id="trades"><div class="meta">Loading...</div></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">Performance Analytics</div>
+    <div class="grid2">
+      <div>
+        <div class="label">Win Rate</div>
+        <div class="value sm" id="v-winrate">--</div>
+      </div>
+      <div>
+        <div class="label">Total Pairs</div>
+        <div class="value sm" id="v-pairs">--</div>
+      </div>
+    </div>
+    <div class="label" style="margin-top:10px">Equity Curve</div>
+    <div style="height:180px;margin-top:6px"><canvas id="equityChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">$100->$1000 Challenge</div>
+    <div class="grid2">
+      <div>
+        <div class="label">Restarts</div>
+        <div class="value sm" id="v-restarts">--</div>
+      </div>
+      <div>
+        <div class="label">Failures</div>
+        <div class="value sm" id="v-failures">--</div>
+      </div>
+    </div>
+    <div class="label" style="margin-top:10px">Progress</div>
+    <div class="value sm" id="v-progress">--</div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">Watchlist <span style="font-size:10px;color:#64748b;font-weight:400">live</span></div>
+    <div id="watchlist"></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-title">Tickers</div>
+    <div id="ticker-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;min-height:24px"></div>
+    <div style="display:flex;gap:6px">
+      <input id="new-ticker" class="ticker-input" type="text" placeholder="Add ticker or ETF..." onkeydown="if(event.key==='Enter') addTicker()">
+      <button onclick="addTicker()" style="background:#2563eb;border:none;border-radius:8px;padding:8px 14px;color:#fff;font-weight:700;font-size:15px">+</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
+      <button class="suggest-btn" onclick="addSuggested('VTI')">VTI</button>
+      <button class="suggest-btn" onclick="addSuggested('VOO')">VOO</button>
+      <button class="suggest-btn" onclick="addSuggested('QQQM')">QQQM</button>
+      <button class="suggest-btn" onclick="addSuggested('SCHD')">SCHD</button>
+      <button class="suggest-btn" onclick="addSuggested('VXUS')">VXUS</button>
+      <button class="suggest-btn" onclick="addSuggested('BND')">BND</button>
+      <button class="suggest-btn" onclick="addSuggested('SOXL')">SOXL</button>
+      <button class="suggest-btn" onclick="addSuggested('TQQQ')">TQQQ</button>
+      <button class="suggest-btn" onclick="addSuggested('ARKK')">ARKK</button>
+    </div>
+    <div style="font-size:10px;color:#64748b;margin-top:6px">Tap ticker to remove</div>
+  </div>
+
+  <div class="foot"><span class="dot"></span> <span id="updated">loading...</span></div>
+</div>
+<script>
+const $ = id => document.getElementById(id.replace(/^#/,''));
+let tickers = [];
+
+async function saveTickers(list){
+  await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({symbols:list})});
+  renderTickers(list);
+}
+
+function renderTickers(list){
+  tickers = list;
+  $('#ticker-list').innerHTML = list.map(s =>
+    `<span class="ticker-tag" onclick="removeTicker('${s}')">${s} &#10005;</span>`
+  ).join('');
+}
+
+async function addTicker(){
+  const v = $('#new-ticker').value.trim().toUpperCase();
+  if(!v) return;
+  if(tickers.includes(v)){ $('#new-ticker').value=''; return; }
+  await saveTickers([...tickers, v].sort());
+  $('#new-ticker').value='';
+}
+
+async function addSuggested(sym){
+  if(tickers.includes(sym)) return;
+  await saveTickers([...tickers, sym].sort());
+}
+
+async function removeTicker(sym){
+  await saveTickers(tickers.filter(x => x !== sym));
+}
+
+async function refresh(){
+  // Fetch all individually — one failure doesn't kill everything
+  const api = async (url, fallback=null) => { try { return await (await fetch(url)).json(); } catch(e){ return fallback; }};
+  const [s, t, a, ch, cfg] = await Promise.all([
+    api('/api/status', {}),
+    api('/api/trades', {trades:[]}),
+    api('/api/analytics', {}),
+    api('/api/challenge-stats', {}),
+    api('/api/config', {})
+  ]);
+  if(cfg && cfg.symbols) renderTickers(cfg.symbols);
+  // Watchlist
+  api('/api/watchlist', {watchlist:[]}).then(wl => {
+      if(!wl || !wl.watchlist) return;
+      $('#watchlist').innerHTML = wl.watchlist.map(item => {
+        const p = item.price ? '$'+item.price.toFixed(2) : '--';
+        const ch = item.change;
+        const cls = ch > 0 ? 'pos' : ch < 0 ? 'neg' : '';
+        const sign = ch > 0 ? '+' : '';
+        const chStr = ch != null ? sign+ch.toFixed(2) : '--';
+        const pctStr = item.changePercent != null ? '('+sign+item.changePercent.toFixed(2)+'%)' : '';
+        return `<div class="trade"><div><div class="sym">${item.symbol}</div><div style="font-size:10px;color:#64748b;margin-top:1px">${(item.name||'').slice(0,30)}</div></div><div style="text-align:right"><div class="${cls}" style="font-size:16px;font-weight:800">${p}</div><div class="${cls}" style="font-size:11px">${chStr} ${pctStr}</div></div></div>`;
+      }).join('');
+    }).catch(()=>{});
+    try {
+    const portfolio = s.portfolio || {};
+    const total = (portfolio.cash||0) + (portfolio.position||0);
+    const init = portfolio.initial||100;
+    const pnl = total - init;
+    const pnlPct = (pnl / init * 100);
+    $('#v-port').textContent = '$' + total.toFixed(2);
+    $('#v-cash').textContent = '$' + (portfolio.cash||0).toFixed(2);
+    $('#v-pnl').textContent = (pnl>=0?'+':'') + pnl.toFixed(2) + ' (' + (pnlPct>=0?'+':'') + pnlPct.toFixed(1) + '%)';
+    $('#v-pnl').className = 'value' + (pnl>=0?' pos':' neg');
+    $('#status').textContent=s.status||'OK'; $('#status').className='badge'+(pnl>=0?'':' down');
+    $('#v-count').textContent = (a.total_trades||0);
+    $('#v-winrate').textContent = (a.win_rate||0) + '%';
+    $('#v-pairs').textContent = (a.total_pairs||0);
+    const trades = t && t.trades ? t.trades : (Array.isArray(t)?t:[]);
+    $('#trades').innerHTML = trades.slice(0,15).map(trade => {
+      const ts = trade.time ? trade.time.replace('T',' ').slice(0,16) : '';
+      const pnlVal = trade.pnl||0;
+      const pnlSign = pnlVal>=0?'+':''; const pnlColor = pnlVal>=0?'pos':'neg';
+      return `<div class="trade"><div><span class="sym">${trade.symbol||'?'}</span><span class="tag ${trade.action}">${trade.action}</span></div><div class="meta">${ts}<br><b class="${pnlColor}">${pnlSign}$${Math.abs(pnlVal).toFixed(2)}</b></div></div>`;
+    }).join('');
+    const eqData = a.equity_history || [];
+    const labels = eqData.slice(-12).map(e => e.time ? e.time.slice(11,16) : '');
+    const values = eqData.slice(-12).map(e => e.value||0);
+    if(window._chart) window._chart.destroy();
+    window._chart = new Chart(document.getElementById('equityChart'), {
+      type:'line', data:{labels, datasets:[{data:values, borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.1)', fill:true, tension:0.3, pointRadius:0}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{grid:{color:'#334155'}, ticks:{color:'#94a3b8',maxTicksLimit:5}}, y:{grid:{color:'#334155'}, ticks:{color:'#94a3b8'}}}}
+    });
+    if(ch.restarts!=null && ch.failures!=null){
+      $('#v-restarts').textContent = ch.restarts;
+      $('#v-failures').textContent = ch.failures;
+      const prog = (ch.current_value / 1000.0 * 100);
+      $('#v-progress').textContent = ch.current_value.toFixed(2) + ' / $1000 (' + prog.toFixed(1) + '%)';
+    } else {
+      $('#v-restarts').textContent = '--';
+      $('#v-failures').textContent = '--';
+      $('#v-progress').textContent = '--';
+    }
+    $('#updated').textContent='updated ' + new Date().toLocaleTimeString();
+  } catch(e){
+    $('#status').textContent='OFFLINE'; $('#status').className='badge down';
+    $('#updated').textContent='connection error';
+  }
+}
+refresh();
+setInterval(refresh,5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+[gd_scene load_steps=5 format=3 uid="UIDTAPNUMBERS"]
+
+[ext_resource path="res://scripts/TapNumbers.gd" type="Script" id=1]
+
+[node name="TapNumbers" type="Node2D"]
+script = ExtResource( 1 )
+
+# Background
+[node name="Background" type="ColorRect" parent="."]
+color = Color(0.1, 0.1, 0.2, 1.0)
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+# Target to tap
+[node name="Target" type="Sprite2D" parent="."]
+texture = SubResource( 0 )
+anchor_center = 0.5
+anchor_center_v = 0.5
+scale = Vector2(0.3, 0.3)
+# We'll move it via script
+
+# UI: Instructions and counter
+[node name="UI" type="CanvasLayer" parent="."]
+    [node name="Instructions" type="Label" parent="."]
+        anchor_center = 0.5
+        anchor_top = 0.1
+        margin_top = -50
+        horizontal_alignment = 1
+        text = "Tap the moving target 5 times!"
+    [node name="Counter" type="Label" parent="."]
+        anchor_center = 0.5
+        anchor_top = 0.1
+        margin_top = 10
+        horizontal_alignment = 1
+        text = "0/5"
+
+# Signal to emit when completed
+[signal name="game_completed"]
+
+# Resources
+[subresource type="StreamTexture" id=0]
+    stream = Subresource type="ImageTexture" id=1]
+        [subresource type="Image" id=2]
+            data = Image.create_from_width_height(64, 64, false, Image.FORMAT_RGBA8)
+            # Draw a simple circle (red) for the target
+            for x in range(64):
+                for y in range(64):
+                    var dx = x - 31.5
+                    var dy = y - 31.5
+                    var dist = sqrt(dx*dx + dy*dy)
+                    if dist < 10:
+                        Image.set_pixel(id=2, x=x, y=y, color=Color(1, 0, 0, 1))
+                    else:
+                        Image.set_pixel(id=2, x=x, y=y, color=Color(0, 0, 0, 0))

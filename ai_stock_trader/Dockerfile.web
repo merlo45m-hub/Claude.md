@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+RUN pip install --no-cache-dir flask flask-socketio yfinance pandas requests
+
+# Copy application
+COPY web_dashboard.py ./
+COPY context_dev_client.py ./
+COPY templates/ ./templates/
+COPY static/ ./static/
+COPY decision_log.txt ./
+COPY config.json ./
+
+# Create data directory
+RUN mkdir -p /data
+
+# Set environment defaults
+ENV DB_PATH=/data/trading_data.db
+ENV CONFIG_PATH=/app/config.json
+
+# Expose dashboard port
+EXPOSE 8084
+
+# Run the dashboard
+CMD ["python3", "-u", "/app/web_dashboard.py"]

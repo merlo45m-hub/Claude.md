@@ -1,0 +1,85 @@
+[package]
+name = "atomic-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core RAG library for Atomic knowledge base"
+license = "MIT"
+
+[dependencies]
+# Database — SQLite (always available)
+rusqlite = { version = "0.32", features = ["bundled", "load_extension"] }
+sqlite-vec = "0.1.6"
+
+# Database — Postgres (feature-gated)
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-rustls"], optional = true }
+pgvector = { version = "0.4", features = ["sqlx"], optional = true }
+# sqlx's slow-query logging API takes `log::LevelFilter`. sqlx ≥0.7 emits the
+# events via `tracing::event!` internally, so we only need the level enum.
+log = { version = "0.4", optional = true }
+
+# Async
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# HTTP
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Utilities
+uuid = { version = "1", features = ["v4", "v7"] }
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
+# Cron schedule parser used by `reports::schedule`. `cron` 0.12 returns a
+# `Schedule` iterator that yields successive fire times, which we wrap in a
+# chrono-tz conversion for IANA-zoned schedules.
+cron = "0.12"
+iana-time-zone = "0.1"
+regex = "1"
+tiktoken-rs = "0.6"
+zerocopy = { version = "0.8", features = ["derive"] }
+thiserror = "1"
+tracing = "0.1"
+utoipa = { version = "5", features = ["preserve_order"], optional = true }
+
+# Token auth
+sha2 = "0.10"
+rand = "0.8"
+base64 = "0.22"
+
+# Markdown parsing
+pulldown-cmark = "0.12"
+
+# Content ingestion
+dom_smoothie = "0.15"
+feed-rs = "2.3"
+
+# For obsidian import
+glob = "0.3"
+yaml-rust2 = "0.9"
+urlencoding = "2"
+url = "2"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[features]
+default = []
+openapi = ["utoipa"]
+postgres = ["sqlx", "pgvector", "log"]
+
+[dev-dependencies]
+tempfile = "3"
+uuid = { version = "1", features = ["v4"] }
+chrono = "0.4"
+# test-util is required for #[tokio::test(start_paused = true)] so retry/backoff
+# tests don't sleep real wall-clock seconds — time auto-advances to the next
+# pending Sleep deadline when the runtime has no other work.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "test-util"] }
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio-rustls"] }
+# Shared mock OpenAI-compat server and Postgres truncation helper. The
+# `postgres` feature pulls the truncate helper in; we enable it
+# unconditionally here because atomic-core's PG suite needs it whenever the
+# `--features postgres` test job is running.
+atomic-test-support = { path = "../atomic-test-support", features = ["postgres"] }

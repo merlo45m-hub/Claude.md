@@ -1,0 +1,39 @@
+exchange:
+  name: kraken
+  api_key: ""
+  api_secret: ""
+  sandbox: false
+  rate_limit: 1200
+
+strategy:
+  type: sma_cross
+  fast_period: 10
+  slow_period: 30
+
+trading:
+  symbols:
+    - BTC/USDT
+  initial_capital: 1000.0
+  position_size_pct: 0.95
+  max_open_positions: 1
+  loop_interval_seconds: 0
+  stop_loss_pct: 0.0
+  take_profit_pct: 0.0
+  db_path: ""
+
+web:
+  enabled: false
+  host: "0.0.0.0"
+  port: 8080
+  password: "changeme"  # set to enable HTTP basic auth on the dashboard
+
+alerts:
+  telegram:
+    enabled: false
+    bot_token: ""
+    chat_id: ""
+  discord:
+    enabled: false
+    webhook_url: ""
+
+log_level: INFO

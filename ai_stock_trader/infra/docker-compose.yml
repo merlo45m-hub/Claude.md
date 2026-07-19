@@ -1,0 +1,20 @@
+version: "3.8"
+services:
+  app:
+    build: .
+    env_file: ./infra/secrets.env
+    depends_on:
+      - timescaledb
+    restart: unless-stopped
+  timescaledb:
+    image: timescale/timescaledb:2-pg14
+    environment:
+      POSTGRES_PASSWORD: ${TIMESCALE_PASS}
+      POSTGRES_USER: ${TIMESCALE_USER}
+      POSTGRES_DB: ${TIMESCALE_DB}
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+    ports: ["5432:5432"]
+    restart: unless-stopped
+volumes:
+  timescaledb-data:

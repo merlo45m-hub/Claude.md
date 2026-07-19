@@ -1,0 +1,72 @@
+[gd_scene load_steps=5 format=3 uid="UIDROADBLOCKSCENE"]
+
+[ext_resource path="res://scripts/Roadblock.gd" type="Script" id=1]
+
+[node name="Roadblock" type="Control"]
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 0
+margin_top = 0
+margin_right = 0
+margin_bottom = 0
+script = ExtResource( 1 )
+
+# Background semi-transparent overlay
+[node name="Background" type="ColorRect" parent="."]
+color = Color(0, 0, 0, 0.6)
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 0
+margin_top = 0
+margin_right = 0
+margin_bottom = 0
+
+# Main container
+[node name="Container" type="VBoxContainer" parent="."]
+anchor_center = 0.5
+anchor_center_v = 0.5
+margin_left = -150
+margin_top = -200
+margin_right = 150
+margin_bottom = 200
+alignment_top = 1
+alignment_left = 1
+margin_left = 20
+margin_top = 20
+margin_right = 20
+margin_bottom = 20
+custom_constants/separation = 20
+
+# Problem label
+[node name="ProblemLabel" type="Label" parent="Container"]
+horizontal_alignment = 1
+vertical_alignment = 1
+font_size = 32
+text = "What is 5 + 3?"
+
+# Answer buttons container
+[node name="AnswersContainer" type="GridContainer" parent="Container"]
+columns = 2
+horizontal_size_flags = 1
+vertical_size_flags = 1
+custom_constants/h_separation = 10
+custom_constants/v_separation = 10
+    [node name="Answer1" type="Button" parent="."]
+        text = "8"
+        custom_constants/minimum_size = Vector2(120, 80)
+    [node name="Answer2" type="Button" parent="."]
+        text = "6"
+        custom_constants/minimum_size = Vector2(120, 80)
+    [node name="Answer3" type="Button" parent="."]
+        text = "9"
+        custom_constants/minimum_size = Vector2(120, 80)
+    [node name="Answer4" type="Button" parent="."]
+        text = "5"
+        custom_constants/minimum_size = Vector2(120, 80)
+
+# AnimationPlayer for break animation
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]

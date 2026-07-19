@@ -1,0 +1,20 @@
+{
+  "risk_per_trade": 0.02,
+  "max_positions": 6,
+  "stop_loss": 0.05,
+  "take_profit": 0.05,
+  "symbols": [
+    "AAPL", "MSFT", "GOOGL", "AMZN", "META",
+    "TSLA", "NVDA", "NFLX", "SPY", "QQQ",
+    "IWM", "XLF", "XLK", "AMD", "AVGO",
+    "JPM", "V", "MA", "COST", "HD",
+    "JNJ", "PG", "XLE", "XLV", "XLI",
+    "TLT", "GLD", "EEM"
+  ],
+  "use_mean_reversion": false,
+  "enable_breakout_filter": true,
+  "breakout_lookback_days": 5,
+  "breakout_momentum_threshold": 0.01,
+  "breakout_position_multiplier": 2,
+  "breakout_max_positions": 8
+}
