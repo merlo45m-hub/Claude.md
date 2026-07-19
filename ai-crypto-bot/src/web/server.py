@@ -403,6 +403,8 @@ async def strategy_info():
         biases = {}
         atrs = {}
         regimes = set()
+        dx_vals = []
+        dir_votes = {"bullish": 0, "bearish": 0, "neutral": 0}
 
         for sym in symbols:
             cursor = db.execute(
@@ -431,6 +433,7 @@ async def strategy_info():
 
             # Simple ADX (14-period)
             period = 14
+            sym_dx = 0
             if len(rows) > period + 5:
                 up_moves = []
                 dn_moves = []
@@ -449,6 +452,8 @@ async def strategy_info():
                 plus_di = 100 * (sum(up_moves) / period) / avg_tr if avg_tr > 0 else 0
                 minus_di = 100 * (sum(dn_moves) / period) / avg_tr if avg_tr > 0 else 0
                 dx = abs(plus_di - minus_di) / (plus_di + minus_di) * 100 if (plus_di + minus_di) > 0 else 0
+                sym_dx = dx
+                dx_vals.append(dx)
 
                 if atr_pct > 5 and dx > 25:
                     regimes.add("volatile")
@@ -468,12 +473,21 @@ async def strategy_info():
                     biases[sym] = "bearish"
                 else:
                     biases[sym] = "neutral"
+            dir_votes[biases.get(sym, "neutral")] = dir_votes.get(biases.get(sym, "neutral"), 0) + 1
 
         regime = "trending" if len(regimes) == 1 and "trending" in regimes else \
                  "volatile" if "volatile" in regimes else \
                  "ranging" if "ranging" in regimes else "mixed"
 
-        return {"regime": regime, "biases": biases, "atr": atrs}
+        # Real confidence (0-100): bias consensus blended with avg ADX trend strength
+        n = len(symbols)
+        decisive = dir_votes["bullish"] + dir_votes["bearish"]
+        consensus = (decisive / n) if n else 0
+        avg_dx = (sum(dx_vals) / len(dx_vals)) if dx_vals else 0
+        dx_strength = min(avg_dx / 40.0, 1.0)
+        confidence = round((0.5 * consensus + 0.5 * dx_strength) * 100)
+
+        return {"regime": regime, "biases": biases, "atr": atrs, "confidence": confidence}
     finally:
         db.close()
 

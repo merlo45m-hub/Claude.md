@@ -107,7 +107,12 @@ body:hover .cursor-glow{opacity:1}
 .ticker-item.flash-down{animation:tkDown .6s ease-out}
 @keyframes tkUp{0%{background:rgba(0,255,157,.18)}100%{background:transparent}}
 @keyframes tkDown{0%{background:rgba(255,59,111,.18)}100%{background:transparent}}
-/* equity mini-bar in stat card (4) */
+/* confidence meter (tier: real backend field) */
+.conf-block{margin:10px 0 4px}
+.conf-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:4px}
+.conf-label span:last-child{font-family:var(--mono);color:var(--text);font-weight:700}
+.conf-meter{height:6px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden}
+.conf-meter i{display:block;height:100%;border-radius:3px;width:0;transition:width .5s ease-out,background .5s;background:linear-gradient(90deg,var(--red),var(--gold) 50%,var(--green))}
 .eq-mini-bar{height:4px;border-radius:3px;margin-top:8px;background:rgba(255,255,255,.06);overflow:hidden}
 .eq-mini-bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--green));transition:width .6s ease-out}
 /* animated gradient title text (1) */
@@ -268,6 +273,9 @@ tr:hover td{background:rgba(99,102,241,.04)}
 #pnlTicker .pnl-chip .val{font-weight:700}
 #pnlTicker .pnl-chip.up{border-color:rgba(0,255,157,.4)}
 #pnlTicker .pnl-chip.down{border-color:rgba(255,59,111,.4)}
+#pnlTicker .pnl-chip.up .val{color:var(--green)}
+#pnlTicker .pnl-chip.down .val{color:var(--red)}
+#pnlTicker .pnl-chip.neutral .val{color:var(--text2)}
 /* ===== value change pop (item 7) ===== */
 @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
 .pop{animation:pop .4s ease-out;display:inline-block}
@@ -393,6 +401,10 @@ tr:hover td{background:rgba(99,102,241,.04)}
       <div class="panel-body">
         <div class="regime-display" id="regimeDisplay">
           <span class="skeleton" style="width:100px;height:32px;border-radius:20px"></span>
+        </div>
+        <div class="conf-block">
+          <div class="conf-label"><span>Signal Confidence</span><span id="confVal">—</span></div>
+          <div class="conf-meter"><i id="confBar"></i></div>
         </div>
         <div class="regime-metrics" id="regimeMetrics"></div>
         <div class="bias-list" id="biasList"></div>
@@ -893,12 +905,17 @@ async function loadPnlTicker() {
     }
     const prices = priceRes.prices || {};
     el.innerHTML = posRes.positions.map(p => {
+      const value = (p.size || 0) * (p.current_price || 0);
+      const hasEntry = p.entry_price > 0;
       const pnl = p.unrealized_pnl || 0;
       const up = pnl >= 0;
       const arrow = up ? '▲' : '▼';
-      return `<div class="pnl-chip ${up ? 'up' : 'down'}">
+      const valTxt = hasEntry ? `${arrow} ${fmt$(pnl)}` : `◆ ${fmt$(value)}`;
+      const cls = hasEntry ? (up ? 'up' : 'down') : 'neutral';
+      const sub = hasEntry ? '' : ' <span style="opacity:.6;font-size:10px">val</span>';
+      return `<div class="pnl-chip ${cls}">
         <span class="sym">${p.symbol.replace('/USDT','')}</span>
-        <span class="val" style="color:${up ? 'var(--green)' : 'var(--red)'}">${arrow} ${fmt$(pnl)}</span>
+        <span class="val">${valTxt}${sub}</span>
       </div>`;
     }).join('');
   } catch (e) {
@@ -971,6 +988,15 @@ async function loadStrategy() {
     const flipped = _lastRegime && _lastRegime !== d.regime;
     container.innerHTML = `<span class="regime-orb ${badgeClass}"></span><span class="regime-badge ${badgeClass}${flipped ? ' flip' : ''}">${label}</span>`;
     _lastRegime = d.regime;
+
+    // Confidence meter (real backend field)
+    const cVal = document.getElementById('confVal');
+    const cBar = document.getElementById('confBar');
+    if (cVal && cBar && typeof d.confidence === 'number' && !isNaN(d.confidence)) {
+      const pct = Math.max(0, Math.min(100, d.confidence));
+      cVal.textContent = pct + '%';
+      cBar.style.width = pct + '%';
+    }
 
     // Bias chips
     const biasEl = document.getElementById('biasList');
