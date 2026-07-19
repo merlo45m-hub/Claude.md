@@ -103,7 +103,7 @@ def _compute_position_equity(
 def _load_json_state(db, key: str) -> dict:
     cursor = db.execute("SELECT value FROM state WHERE key = ?", (key,))
     row = cursor.fetchone()
-    return json.loads(row["value"]) if row else {}
+    return json.loads(row["value"]) if row and row["value"] is not None else {}
 
 
 def _load_float_state(db, key: str, default: float = 0.0) -> float:
@@ -226,9 +226,13 @@ async def positions():
         return {"positions": []}
     try:
         raw = _load_json_state(db, "positions")
-        if not raw:
+        if isinstance(raw, list):
+            raw = {p.get("symbol", f"pos_{i}"): p for i, p in enumerate(raw) if isinstance(p, dict)}
+        if not isinstance(raw, dict) or not raw:
             return {"positions": []}
         prices = _load_json_state(db, "prices")
+        if not isinstance(prices, dict):
+            prices = {}
 
         enriched = []
         for sym, pos in raw.items():
@@ -236,8 +240,8 @@ async def positions():
             enriched.append({
                 "symbol": sym,
                 "direction": pos.get("direction"),
-                "entry_price": round(pos.get("price", 0), 2),
-                "size": round(pos.get("size", 0), 6),
+                "entry_price": round(pos.get("price") or 0, 2),
+                "size": round(pos.get("size") or 0, 6),
                 "current_price": info["current_price"],
                 "unrealized_pnl": info["unrealized_pnl"],
                 "pnl_pct": info["pnl_pct"],

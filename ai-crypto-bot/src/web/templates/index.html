@@ -28,6 +28,43 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .ticker-sym{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.3px}
 .ticker-price{font-size:18px;font-weight:700;font-family:var(--mono);margin:2px 0}
 .ticker-change{font-size:11px;font-weight:600}
+.challenge-strip{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:4px 0 6px;padding:12px 16px;font-size:13px;position:relative;overflow:hidden;border-radius:14px;background:rgba(28,26,46,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid transparent;background-clip:padding-box}
+/* animated gradient border cycling Context.dev brand color */
+.challenge-strip::after{content:"";position:absolute;inset:0;border-radius:14px;padding:1px;background:linear-gradient(120deg,var(--accent),#ff3b6f,#00d4ff,var(--accent));background-size:300% 100%;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:borderCycle 6s linear infinite;pointer-events:none}
+@keyframes borderCycle{0%{background-position:0% 0}100%{background-position:300% 0}}
+.challenge-strip::before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.05) 50%,transparent 70%);transform:translateX(-100%);animation:shimmer 6s infinite;pointer-events:none}
+@keyframes shimmer{0%{transform:translateX(-100%)}60%,100%{transform:translateX(100%)}}
+.challenge-strip .cs-item{display:flex;flex-direction:column;gap:2px;min-width:84px;z-index:1}
+.challenge-strip .cs-label{color:var(--text2);font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+.challenge-strip .cs-value{font-family:var(--mono);font-weight:700;font-size:15px;transition:color .4s}
+/* odometer digit roll */
+.cs-odo{display:inline-block;overflow:hidden;height:1.1em;vertical-align:bottom}
+.cs-odo > span{display:block;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.cs-pulse{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;z-index:1}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.82)}}
+/* progress bar: equity -> target */
+.cs-progress{flex-basis:100%;height:6px;border-radius:4px;background:var(--surface2);overflow:hidden;margin-top:2px;z-index:1}
+.cs-progress > i{display:block;height:100%;width:0;border-radius:4px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+/* equity sparkline */
+.cs-spark{width:90px;height:34px;z-index:1}
+/* day-progress ring */
+.cs-ring{width:38px;height:38px;z-index:1}
+/* confetti on reset */
+.confetti{position:fixed;top:0;left:0;width:9px;height:14px;opacity:0;pointer-events:none;z-index:9999;border-radius:2px}
+@keyframes confettiFall{0%{opacity:1;transform:translateY(-10vh) rotate(0)}100%{opacity:0;transform:translateY(105vh) rotate(720deg)}}
+.challenge-banner{margin:4px 0 14px;padding:14px 18px;border-radius:12px;font-weight:700;font-size:15px;text-align:center;position:relative;overflow:hidden}
+.challenge-banner.hidden{display:none}
+.challenge-banner.flash{color:#fff;border:1px solid var(--red);background:linear-gradient(110deg,#ff3b6f,#a855f7,#ff3b6f);background-size:200% 100%;animation:bannerSweep 1.1s ease-in-out 3, bannerPop .4s ease-out 1}
+.challenge-banner.flash::after{content:"";position:absolute;inset:0;border-radius:12px;box-shadow:0 0 0 0 rgba(255,59,111,.6);animation:ring 1.1s ease-out 3}
+@keyframes bannerSweep{0%{background-position:0% 0}100%{background-position:200% 0}}
+@keyframes bannerPop{0%{transform:scale(.9);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes ring{0%{box-shadow:0 0 0 0 rgba(255,59,111,.55)}100%{box-shadow:0 0 0 22px rgba(255,59,111,0)}}
+/* stat card glass + shimmer + lift */
+.stat-card{position:relative;overflow:hidden;background:rgba(28,26,46,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.stat-card::after{content:"";position:absolute;top:0;left:0;right:0;height:100%;background:linear-gradient(110deg,transparent 35%,rgba(168,85,247,.09) 50%,transparent 65%);transform:translateX(-100%);transition:transform .6s}
+.stat-card:hover{transform:translateY(-3px);border-color:var(--accent);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.stat-card:hover::after{transform:translateX(100%);animation:cardShimmer .9s ease-out}
+@keyframes cardShimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
 .ticker-change.up{color:var(--green)}
 .ticker-change.down{color:var(--red)}
 
@@ -44,7 +81,13 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 
 .charts-row{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:16px}
 
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+/* glassmorphic depth (B) — breathing glow */
+.panel{background:rgba(20,17,34,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.03);animation:panelBreathe 7s ease-in-out infinite}
+@keyframes panelBreathe{0%,100%{box-shadow:0 8px 30px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.03),0 0 0 rgba(168,85,247,0)}50%{box-shadow:0 10px 36px rgba(0,0,0,.4),inset 0 0 0 1px rgba(255,255,255,.05),0 0 24px rgba(168,85,247,.10)}}
+/* spotlight hover (G) — dim others when one is focused */
+body:has(.panel:hover) .panel:not(:hover){opacity:.5;transform:scale(.992);transition:opacity .35s,transform .35s}
+.panel{transition:opacity .35s,transform .35s,box-shadow .35s}
+.panel:hover{box-shadow:0 12px 44px rgba(0,0,0,.5),inset 0 0 0 1px rgba(168,85,247,.25),0 0 30px rgba(168,85,247,.18);border-color:rgba(168,85,247,.35)}
 .panel-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
 .panel-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)}
 .panel-controls{display:flex;align-items:center;gap:8px;font-size:12px}
@@ -61,6 +104,75 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
 .regime-badge.ranging{background:rgba(255,215,0,.15);color:var(--gold)}
 .regime-badge.volatile{background:rgba(255,59,111,.15);color:var(--red)}
 .regime-badge.mixed{background:rgba(168,85,247,.15);color:var(--accent)}
+/* regime flip pulse (item 2) */
+@keyframes regimeFlip{0%{transform:scale(1)}30%{transform:scale(1.25);filter:brightness(1.6)}100%{transform:scale(1)}}
+.regime-badge.flip{animation:regimeFlip .7s ease-out}
+/* regime orb (D) — pulsing color sphere */
+.regime-orb{width:14px;height:14px;border-radius:50%;flex:0 0 auto;position:relative;box-shadow:0 0 12px currentColor;animation:orbPulse 2.4s ease-in-out infinite}
+.regime-orb::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:1px solid currentColor;opacity:.4;animation:orbRing 2.4s ease-out infinite}
+@keyframes orbPulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.25);filter:brightness(1.5)}}
+@keyframes orbRing{0%{transform:scale(.8);opacity:.5}100%{transform:scale(1.8);opacity:0}}
+.regime-orb.trending{color:var(--green);background:var(--green)}
+.regime-orb.ranging{color:var(--gold);background:var(--gold)}
+.regime-orb.volatile{color:var(--red);background:var(--red)}
+.regime-orb.mixed{color:var(--accent);background:var(--accent)}
+/* equity reel (item 3) */
+@keyframes reel{0%{transform:translateY(-55%)}100%{transform:translateY(0)}}
+.stat-value.reel{display:inline-block;animation:reel .45s cubic-bezier(.2,.8,.2,1)}
+/* equity heartbeat pulse ring (C) */
+.stat-card{position:relative;overflow:visible}
+.stat-card.beat::after{content:"";position:absolute;left:50%;top:42%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;border:2px solid var(--green);opacity:.6;pointer-events:none;animation:beatPulse 1s ease-out}
+@keyframes beatPulse{0%{transform:scale(.4);opacity:.7}100%{transform:scale(3.4);opacity:0}}
+/* chart glow (item 1) */
+.chart-container{position:relative}
+.chart-container::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:12px;box-shadow:inset 0 0 30px rgba(168,85,247,.08);transition:box-shadow .4s}
+.chart-container.glow::after{box-shadow:inset 0 0 40px rgba(0,212,255,.18)}
+#candleChart canvas{transition:filter .4s}
+.chart-container.glow #candleChart canvas{filter:drop-shadow(0 0 3px rgba(0,255,157,.25))}
+/* ambient living mesh background (A) — three drifting blobs */
+.ambient{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden;background:#0a0812}
+.ambient::before,.ambient::after{content:"";position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;mix-blend-mode:screen}
+.ambient{background:
+  radial-gradient(38% 48% at 18% 28%, rgba(168,85,247,.22), transparent 70%);}
+.ambient::before{width:55vw;height:55vw;left:-10vw;top:-10vh;background:radial-gradient(circle,rgba(0,212,255,.30),transparent 65%);animation:meshA 26s ease-in-out infinite}
+.ambient::after{width:50vw;height:50vw;right:-8vw;bottom:-12vh;background:radial-gradient(circle,rgba(255,59,111,.24),transparent 65%);animation:meshB 32s ease-in-out infinite}
+@keyframes meshA{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(20vw,12vh) scale(1.15)}66%{transform:translate(8vw,-10vh) scale(.9)}}
+@keyframes meshB{0%,100%{transform:translate(0,0) scale(1)}40%{transform:translate(-18vw,-8vh) scale(1.1)}70%{transform:translate(-6vw,14vh) scale(.95)}}
+/* sound toggle button (item 4) */
+.sound-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:8px;padding:4px 9px;font-size:13px;cursor:pointer;transition:border-color .2s,color .2s}
+.sound-btn:hover{border-color:var(--accent);color:var(--text)}
+.sound-btn.on{color:var(--green);border-color:rgba(0,255,157,.4)}
+
+/* ===== Tier 4: reset takeover modal (item 1) ===== */
+.reset-modal{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:rgba(10,8,18,.82);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .35s}
+.reset-modal.show{opacity:1;pointer-events:auto}
+.reset-modal .rm-card{text-align:center;transform:scale(.8);transition:transform .4s cubic-bezier(.2,1.4,.4,1)}
+.reset-modal.show .rm-card{transform:scale(1)}
+.reset-modal h1{font-size:46px;margin:0;background:linear-gradient(90deg,var(--green),var(--accent),var(--red));-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:1px}
+.reset-modal p{color:var(--text2);margin:10px 0 0;font-size:15px}
+@keyframes confettiFall{to{transform:translateY(105vh) rotate(720deg);opacity:.2}}
+.confetti{position:fixed;top:-12px;width:9px;height:14px;z-index:201;pointer-events:none;border-radius:2px;animation:confettiFall linear forwards}
+
+/* ===== Tier 4: trade replay panel (item 2) ===== */
+.replay-panel{position:fixed;top:0;right:0;height:100%;width:340px;max-width:88vw;background:var(--surface);border-left:1px solid var(--border2);box-shadow:-12px 0 40px rgba(0,0,0,.5);transform:translateX(105%);transition:transform .35s cubic-bezier(.2,.8,.2,1);z-index:150;padding:20px;overflow-y:auto}
+.replay-panel.open{transform:translateX(0)}
+.replay-panel h3{margin:0 0 4px;font-size:18px;display:flex;justify-content:space-between;align-items:center}
+.replay-close{cursor:pointer;color:var(--text2);font-size:20px;line-height:1;background:none;border:none}
+.replay-close:hover{color:var(--red)}
+.replay-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.replay-row span:first-child{color:var(--text2)}
+.replay-spark{margin:14px 0;height:90px;width:100%}
+
+/* ===== Tier 4: watch-grid sparkline (item 3) ===== */
+.ticker-item .mini-spark{margin-top:5px;width:100%;height:18px;display:block}
+
+/* ===== Tier 4: mobile (item 4) ===== */
+.ptr-hint{display:none;text-align:center;color:var(--text2);font-size:12px;padding:6px}
+@media(max-width:640px){
+  .replay-panel{width:100%}
+  .ptr-hint{display:block}
+  .charts-row,.mid-row{grid-template-columns:1fr}
+}
 .regime-metrics{display:flex;gap:20px;font-size:13px}
 .regime-metrics dt{color:var(--text2);font-size:11px;text-transform:uppercase;letter-spacing:.3px}
 .regime-metrics dd{font-weight:600;font-family:var(--mono);margin-top:2px}
@@ -94,6 +206,26 @@ tr:hover td{background:rgba(99,102,241,.04)}
 #alert-log .log-msg{font-size:12px}
 #alert-log .log-time{color:var(--text2);margin-right:8px}
 
+/* ===== trade slide-in (item 1) ===== */
+@keyframes tradeIn{0%{opacity:0;transform:translateX(28px);background:rgba(0,255,157,.12)}100%{opacity:1;transform:translateX(0);background:transparent}}
+.trade-new{animation:tradeIn .55s cubic-bezier(.2,.8,.2,1)}
+/* ===== live P&L ticker (item 2) ===== */
+#pnlTicker{display:flex;gap:8px;overflow-x:auto;padding:6px 2px 10px;scrollbar-width:thin}
+#pnlTicker .pnl-chip{flex-shrink:0;display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;font-family:var(--mono)}
+#pnlTicker .pnl-chip .sym{color:var(--text2);font-weight:600}
+#pnlTicker .pnl-chip .val{font-weight:700}
+#pnlTicker .pnl-chip.up{border-color:rgba(0,255,157,.4)}
+#pnlTicker .pnl-chip.down{border-color:rgba(255,59,111,.4)}
+/* ===== value change pop (item 7) ===== */
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+.pop{animation:pop .4s ease-out;display:inline-block}
+
+/* respect reduced-motion: kill all the motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .challenge-strip::after, .challenge-strip::before { display: none; }
+}
+
 @media(max-width:1024px){.charts-row,.mid-row{grid-template-columns:1fr}}
 @media(max-width:640px){
   .container{padding:10px 12px}
@@ -101,6 +233,7 @@ tr:hover td{background:rgba(99,102,241,.04)}
   .stats-grid{grid-template-columns:repeat(2,1fr);gap:6px}
   .stat-value{font-size:17px}
   .chart-container{height:280px}
+}
   .chart-container.equity{height:240px}
   .ticker-item{min-width:100px;padding:6px 10px}
   .ticker-price{font-size:14px}
@@ -111,6 +244,25 @@ tr:hover td{background:rgba(99,102,241,.04)}
 </head>
 <body>
 
+<div class="ambient"></div>
+
+<!-- Tier 4: reset takeover modal -->
+<div class="reset-modal" id="resetModal">
+  <div class="rm-card">
+    <h1>RESTART</h1>
+    <p id="resetModalSub">challenge reset</p>
+  </div>
+</div>
+
+<!-- Tier 4: trade replay side panel -->
+<div class="replay-panel" id="replayPanel">
+  <h3><span id="replayTitle">Trade</span><button class="replay-close" onclick="closeReplay()">×</button></h3>
+  <div id="replayBody"></div>
+  <canvas class="replay-spark" id="replaySpark"></canvas>
+</div>
+
+<div class="ptr-hint">↓ pull to refresh</div>
+
 <header>
   <div class="logo">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#a855f7" stroke-width="2" stroke-linejoin="round"/></svg>
@@ -119,11 +271,20 @@ tr:hover td{background:rgba(99,102,241,.04)}
   </div>
   <div class="header-right">
     <span id="statusText" style="font-weight:600">Running</span>
+    <button class="sound-btn" id="soundBtn" title="Toggle trade & reset sounds">🔇</button>
     <span id="clockDisplay" class="clock">--:--:--</span>
   </div>
 </header>
 
 <div class="container">
+  <!-- Challenge reset banner (flashes on reset) -->
+  <div id="challengeBanner" class="challenge-banner hidden"></div>
+  <!-- Standing challenge status strip -->
+  <div id="challengeStrip" class="challenge-strip"></div>
+
+  <!-- Live P&L ticker -->
+  <div id="pnlTicker"></div>
+
   <!-- Ticker -->
   <div class="ticker-strip" id="tickerStrip">
     <div class="skeleton" style="width:140px;height:72px;flex-shrink:0"></div>
@@ -250,6 +411,7 @@ let equityChartInstance = null, allocChartInstance = null;
 let selectedSymbol = 'BTC/USDT';
 
 // ====== Ticker ======
+let _priceHist = {};
 function renderTicker(prices, prevPrices = {}) {
   const strip = document.getElementById('tickerStrip');
   const entries = Object.entries(prices);
@@ -265,6 +427,9 @@ function renderTicker(prices, prevPrices = {}) {
     const isUp = chg >= 0;
     const isActive = sym === selectedSymbol;
     const b = BRANDS[sym] || {};
+    // rolling price history for mini sparkline (item 3)
+    (_priceHist[sym] = _priceHist[sym] || []).push(price);
+    if (_priceHist[sym].length > 40) _priceHist[sym].shift();
     const logo = b.logo ? `<img src="${b.logo}" style="width:22px;height:22px;border-radius:6px;object-fit:contain;background:#fff;flex:0 0 auto" onerror="this.style.display='none'">` : '';
     return `<div class="ticker-item ${isActive ? 'active' : ''}" onclick="switchSymbol('${sym}')">
       <div style="display:flex;align-items:center;gap:8px">
@@ -273,8 +438,14 @@ function renderTicker(prices, prevPrices = {}) {
       </div>
       <div class="ticker-price ${isUp ? 'stat-green' : 'stat-red'}">${fmt$(price)}</div>
       <div class="ticker-change ${isUp ? 'up' : 'down'}">${isUp ? '▲' : '▼'} ${fmtPct(chgPct)}</div>
+      <canvas class="mini-spark" id="spark-${sym.replace('/','_')}" width="120" height="18"></canvas>
     </div>`;
   }).join('');
+  // draw sparklines after DOM insert
+  sorted.forEach(([sym, price]) => {
+    const cv = document.getElementById('spark-' + sym.replace('/', '_'));
+    if (cv) _spark(cv, _priceHist[sym], price >= (_priceHist[sym][0] || price) ? '#00ff9d' : '#ff3b6f');
+  });
 }
 
 // ====== Symbol switching ======
@@ -450,6 +621,7 @@ async function loadAllocation() {
 }
 
 // ====== Stats ======
+let _lastEquity = null;
 async function loadStats() {
   try {
     const res = await fetch('/api/summary');
@@ -461,7 +633,7 @@ async function loadStats() {
     document.getElementById('statsGrid').innerHTML = `
       <div class="stat-card">
         <div class="stat-label">Portfolio</div>
-        <div class="stat-value ${d.total_pnl >= 0 ? 'stat-green' : 'stat-red'}">${fmt$(d.equity)}</div>
+        <div class="stat-value ${d.total_pnl >= 0 ? 'stat-green' : 'stat-red'}" id="statEquity">${fmt$(d.equity)}</div>
         <div class="stat-sub ${d.total_return_pct >= 0 ? 'stat-green' : 'stat-red'}">${fmtPct(d.total_return_pct)} all time</div>
       </div>
       <div class="stat-card">
@@ -491,6 +663,20 @@ async function loadStats() {
       </div>
     `;
     document.title = `AI Bot ${fmt$(d.equity)}`;
+    // equity reel on change (item 3)
+    const eqEl = document.getElementById('statEquity');
+    if (eqEl && _lastEquity !== null && _lastEquity !== d.equity) {
+      eqEl.classList.remove('reel');
+      void eqEl.offsetWidth;
+      eqEl.classList.add('reel');
+      const card = eqEl.closest('.stat-card');
+      if (card) {
+        card.classList.remove('beat');
+        void card.offsetWidth;
+        card.classList.add('beat');
+      }
+    }
+    _lastEquity = d.equity;
   } catch(e) { console.warn('Stats load failed:', e); }
 }
 
@@ -550,6 +736,8 @@ async function loadMarket() {
 }
 
 // ====== Trades ======
+let _lastTradeId = 0;
+let _tradeMap = {};
 async function loadTrades() {
   try {
     const res = await fetch('/api/trades?limit=50');
@@ -557,12 +745,18 @@ async function loadTrades() {
     const body = document.getElementById('tradeBody');
     if (!d.trades || !d.trades.length) {
       body.innerHTML = '<tr><td colspan="7" style="color:var(--text2);text-align:center">No trades yet</td></tr>';
+      _lastTradeId = 0;
       return;
     }
+    const newest = d.trades[0].id;
+    const hasNew = newest > _lastTradeId && _lastTradeId > 0;
     body.innerHTML = d.trades.map(t => {
       const badge = `badge-${t.side}`;
       const pnlPct = t.entry_price && t.entry_price > 0 && t.size ? ((t.pnl) / (t.size * t.entry_price) * 100) : 0;
-      return `<tr>
+      const isNew = hasNew && t.id > _lastTradeId;
+      if (isNew) _tradeBlip(t.side);
+      _tradeMap[t.id] = t;
+      return `<tr class="${isNew ? 'trade-new' : ''}" style="cursor:pointer" onclick="openReplay(${t.id})">
         <td style="color:var(--text2)">${t.id}</td>
         <td>${t.symbol}</td>
         <td><span class="badge ${badge}">${t.side}</span></td>
@@ -572,7 +766,61 @@ async function loadTrades() {
         <td style="color:${t.pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${fmtPct(pnlPct)}</td>
       </tr>`;
     }).join('');
+    _lastTradeId = newest;
   } catch(e) { console.warn('Trades load failed:', e); }
+}
+
+// ====== Trade replay panel (item 2) ======
+function closeReplay() { document.getElementById('replayPanel').classList.remove('open'); }
+async function openReplay(id) {
+  const t = _tradeMap[id];
+  if (!t) return;
+  const panel = document.getElementById('replayPanel');
+  document.getElementById('replayTitle').textContent = `#${t.id} ${t.symbol} ${t.side.toUpperCase()}`;
+  const pnl = t.pnl || 0;
+  document.getElementById('replayBody').innerHTML = `
+    <div class="replay-row"><span>Side</span><span>${t.side.toUpperCase()}</span></div>
+    <div class="replay-row"><span>Entry</span><span>${fmt$(t.entry_price || t.price)}</span></div>
+    <div class="replay-row"><span>Exit</span><span>${fmt$(t.price)}</span></div>
+    <div class="replay-row"><span>Size</span><span>${fmtSize(t.size)}</span></div>
+    <div class="replay-row"><span>P&L</span><span style="color:${pnl >= 0 ? 'var(--green)' : 'var(--red)'};font-weight:600">${fmt$(pnl)}</span></div>
+    <div class="replay-row"><span>Status</span><span>${t.status || 'closed'}</span></div>`;
+  panel.classList.add('open');
+  // sparkline of symbol price around the trade
+  try {
+    const res = await fetch(`/api/ohlc?symbol=${t.symbol}&limit=60`);
+    const d = await res.json();
+    const pts = (d.points || []).map(p => p.close != null ? p.close : p.price);
+    _spark(document.getElementById('replaySpark'), pts, pnl >= 0 ? '#00ff9d' : '#ff3b6f');
+  } catch (e) { /* ohlc unavailable */ }
+}
+
+// ====== Live P&L ticker (item 2) — resilient to /api/positions failures ======
+async function loadPnlTicker() {
+  const el = document.getElementById('pnlTicker');
+  if (!el) return;
+  try {
+    const [posRes, priceRes] = await Promise.all([
+      fetch('/api/positions').then(r => r.json()).catch(() => null),
+      fetch('/api/prices').then(r => r.json()).catch(() => ({})),
+    ]);
+    if (!posRes || !posRes.positions || !posRes.positions.length) {
+      el.innerHTML = '<span style="color:var(--text2);font-size:12px">No open positions</span>';
+      return;
+    }
+    const prices = priceRes.prices || {};
+    el.innerHTML = posRes.positions.map(p => {
+      const pnl = p.unrealized_pnl || 0;
+      const up = pnl >= 0;
+      const arrow = up ? '▲' : '▼';
+      return `<div class="pnl-chip ${up ? 'up' : 'down'}">
+        <span class="sym">${p.symbol.replace('/USDT','')}</span>
+        <span class="val" style="color:${up ? 'var(--green)' : 'var(--red)'}">${arrow} ${fmt$(pnl)}</span>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = '<span style="color:var(--text2);font-size:12px">P&L feed unavailable</span>';
+  }
 }
 
 // ====== Alerts ======
@@ -627,6 +875,7 @@ async function loadBotStatus() {
 }
 
 // ====== Strategy / Regime ======
+let _lastRegime = '';
 async function loadStrategy() {
   try {
     const res = await fetch('/api/strategy');
@@ -636,7 +885,9 @@ async function loadStrategy() {
     const container = document.getElementById('regimeDisplay');
     const badgeClass = d.regime;
     const label = d.regime.charAt(0).toUpperCase() + d.regime.slice(1);
-    container.innerHTML = `<span class="regime-badge ${badgeClass}">${label}</span>`;
+    const flipped = _lastRegime && _lastRegime !== d.regime;
+    container.innerHTML = `<span class="regime-orb ${badgeClass}"></span><span class="regime-badge ${badgeClass}${flipped ? ' flip' : ''}">${label}</span>`;
+    _lastRegime = d.regime;
 
     // Bias chips
     const biasEl = document.getElementById('biasList');
@@ -674,6 +925,166 @@ async function loadBrands() {
     BRANDS = (d && d.brands) ? d.brands : {};
   } catch(e) { BRANDS = {}; }
 }
+
+// ====== Challenge reset signal (Context.dev themed) ======
+let _lastRestarts = 0;
+let _challengeInit = false;
+let _soundOn = true;
+// smooth count-up tween for numeric stat values
+function _countUp(el, to, fmt, dur=600) {
+  const from = parseFloat(el.dataset.val || '0');
+  if (from === to) { el.textContent = fmt(to); return; }
+  const t0 = performance.now();
+  function step(now) {
+    const p = Math.min(1, (now - t0) / dur);
+    const eased = 1 - Math.pow(1 - p, 3);
+    const v = from + (to - from) * eased;
+    el.textContent = fmt(v);
+    if (p < 1) requestAnimationFrame(step);
+    else el.dataset.val = to;
+  }
+  el.dataset.val = to;
+  requestAnimationFrame(step);
+}
+// pop a value element when its content changes (item 7)
+function _pop(el) {
+  if (!el) return;
+  el.classList.remove('pop');
+  void el.offsetWidth; // reflow to restart animation
+  el.classList.add('pop');
+}
+function _brandAccent() {
+  // Use the primary pair's Context.dev brand color to theme the challenge UI
+  const sym = Object.keys(BRANDS)[0];
+  if (sym && BRANDS[sym] && BRANDS[sym].colors && BRANDS[sym].colors.length) {
+    return BRANDS[sym].colors[0].hex;
+  }
+  return 'var(--accent)';
+}
+// tiny equity sparkline drawn on a canvas
+function _spark(canvas, points, color) {
+  if (!canvas || !points || points.length < 2) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  const min = Math.min(...points), max = Math.max(...points);
+  const span = (max - min) || 1;
+  const stepX = w / (points.length - 1);
+  ctx.beginPath();
+  points.forEach((v, i) => {
+    const x = i * stepX, y = h - ((v - min) / span) * (h - 4) - 2;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  });
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
+  // fill under line
+  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+  ctx.fillStyle = color + '22'; ctx.fill();
+}
+// circular day-progress ring (SVG)
+function _ring(svg, pct, color) {
+  if (!svg) return;
+  const c = 2 * Math.PI * 15;
+  svg.innerHTML = `<circle cx="19" cy="19" r="15" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="3"/>
+    <circle cx="19" cy="19" r="15" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round"
+      stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - pct)}" transform="rotate(-90 19 19)"/>`;
+}
+// full-screen reset takeover (item 1) — shows 2s then collapses
+function _showResetModal(n, failures, eq) {
+  const modal = document.getElementById('resetModal');
+  const sub = document.getElementById('resetModalSub');
+  if (!modal) return;
+  sub.textContent = `Restart #${n} · Failure #${failures} · Equity $${eq.toFixed(2)} → restarted at $100`;
+  modal.classList.add('show');
+  _confetti(['#a855f7', '#00ff9d', '#ff3b6f', '#ffd700', '#00d4ff']);
+  setTimeout(() => modal.classList.remove('show'), 2000);
+}
+// confetti burst from top of viewport
+function _confetti(colors) {
+  for (let i = 0; i < 40; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.background = colors[i % colors.length];
+    p.style.animation = `confettiFall ${1 + Math.random()}s ${Math.random() * .3}s ease-in forwards`;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 2500);
+  }
+}
+// subtle webaudio blip on reset
+// shared audio: master toggle via _soundOn (button, default OFF)
+function _tone(freq, dur=0.18, type='triangle', vol=0.12) {
+  if (!_soundOn) return;
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(vol, ac.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime + dur);
+  } catch (e) { /* audio not available */ }
+}
+function _blip() { _tone(660, 0.35, 'triangle', 0.15); }      // reset
+function _tradeBlip(side) {                                     // buy/sell
+  if (side === 'buy') _tone(880, 0.16, 'sine', 0.10);
+  else if (side === 'sell') _tone(440, 0.16, 'sine', 0.10);
+}
+async function loadChallenge() {
+  try {
+    const [d, eqRes] = await Promise.all([
+      fetch('/api/challenge').then(r => r.json()).catch(() => ({})),
+      fetch('/api/equity').then(r => r.json()).catch(() => ({ equity: [] })),
+    ]);
+    const accent = _brandAccent();
+    const strip = document.getElementById('challengeStrip');
+    if (strip) {
+      const eq = d.equity != null ? d.equity : 0;
+      const target = d.target || 1000;
+      const prog = d.progress_pct != null ? d.progress_pct : 0;
+      const cls = prog >= 50 ? 'green' : (prog > 0 ? 'gold' : 'red');
+      const dayPct = (d.days_left != null && d.days_left <= 30)
+        ? (1 - d.days_left / 30) : 0;
+      strip.innerHTML = `
+        <div class="cs-pulse" title="bot alive"></div>
+        <div class="cs-item"><span class="cs-label">Challenge</span><span class="cs-value" style="color:${accent}">$100 → $${target}</span></div>
+        <div class="cs-item"><span class="cs-label">Equity</span><span class="cs-value ${cls}" id="csEquity">$${eq.toFixed(2)}</span></div>
+        <div class="cs-item"><span class="cs-label">Progress</span><span class="cs-value ${cls}" id="csProg">${prog}%</span></div>
+        <div class="cs-item"><span class="cs-label">Days</span><span class="cs-value" id="csDays">${d.days_left != null ? d.days_left : '?'}</span></div>
+        <div class="cs-item"><span class="cs-label">Restarts</span><span class="cs-value gold">${d.restarts || 0}</span></div>
+        <div class="cs-item"><span class="cs-label">Failures</span><span class="cs-value red">${d.failures || 0}</span></div>
+        <canvas class="cs-spark" id="csSpark" width="90" height="34"></canvas>
+        <svg class="cs-ring" id="csRing" viewBox="0 0 38 38"></svg>
+        <div class="cs-progress"><i id="csBar" style="background:${accent}"></i></div>
+      `;
+      strip.style.borderColor = accent;
+      _countUp(document.getElementById('csEquity'), eq, v => '$' + v.toFixed(2));
+      const eqEl = document.getElementById('csEquity');
+      if (eqEl && parseFloat(eqEl.dataset.val || '0') !== eq) _pop(eqEl);
+      _countUp(document.getElementById('csProg'), prog, v => v.toFixed(1) + '%');
+      const bar = document.getElementById('csBar');
+      if (bar) bar.style.width = Math.max(0, Math.min(100, prog)) + '%';
+      const pts = (eqRes.points || []).slice(-40).map(e => e.equity != null ? e.equity : (e.value != null ? e.value : 0));
+      _spark(document.getElementById('csSpark'), pts, accent);
+      _ring(document.getElementById('csRing'), dayPct, accent);
+    }
+    // Detect reset: restarts count increased since last poll (skip first poll)
+    const restarts = d.restarts || 0;
+    if (_challengeInit && restarts > _lastRestarts) {
+      const banner = document.getElementById('challengeBanner');
+      if (banner) {
+        banner.className = 'challenge-banner flash';
+        banner.innerHTML = `🔄 CHALLENGE RESET — Restart #${restarts} · Failure #${d.failures || 0} · Equity hit $${eq.toFixed(2)} → restarted at $100`;
+        setTimeout(() => { banner.className = 'challenge-banner hidden'; }, 4000);
+      }
+      _confetti([accent, '#ff3b6f', '#00d4ff', '#ffd700']);
+      _blip();
+      _showResetModal(restarts, d.failures || 0, eq);
+    }
+    _lastRestarts = restarts;
+    _challengeInit = true;
+  } catch (e) { console.warn('Challenge load failed:', e); }
+}
 async function loadAll() {
   // Fetch prices + brands together so the ticker paints WITH logos on first render
   const [pricesRes] = await Promise.all([
@@ -696,6 +1107,8 @@ async function loadAll() {
     loadStrategy(),
     loadEquity(),
     loadAllocation(),
+    loadChallenge(),
+    loadPnlTicker(),
   ]);
 }
 
@@ -731,6 +1144,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       loadStrategy(),
       loadEquity(),
       loadAllocation(),
+      loadChallenge(),
+      loadPnlTicker(),
     ]);
     // Refresh candles less often (only if they changed)
     if (candleSeries) {
@@ -741,6 +1156,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Refresh candles every 60s
   setInterval(() => loadCandles(selectedSymbol), 60000);
+
+  // Sound toggle (item 4) — master switch, persisted, default OFF
+  const sBtn = document.getElementById('soundBtn');
+  _soundOn = localStorage.getItem('botSound') === '1';
+  const syncBtn = () => {
+    sBtn.textContent = _soundOn ? '🔊' : '🔇';
+    sBtn.classList.toggle('on', _soundOn);
+  };
+  syncBtn();
+  sBtn.addEventListener('click', () => {
+    _soundOn = !_soundOn;
+    localStorage.setItem('botSound', _soundOn ? '1' : '0');
+    syncBtn();
+    if (_soundOn) _tone(720, 0.12, 'sine', 0.10); // confirm-on chirp
+  });
+
+  // Chart glow (item 1) — mark the candle panel as glowing
+  const cc = document.querySelector('.chart-container');
+  if (cc) cc.classList.add('glow');
+
+  // Mobile pull-to-refresh (item 4) — when at top and pulled down, refresh
+  let touchY = 0, pulling = false;
+  document.addEventListener('touchstart', e => {
+    if (window.scrollY <= 0) { touchY = e.touches[0].clientY; pulling = true; }
+  }, {passive:true});
+  document.addEventListener('touchmove', e => {
+    if (pulling && e.touches[0].clientY - touchY > 90) {
+      pulling = false; loadAll();
+    }
+  }, {passive:true});
+  document.addEventListener('touchend', () => { pulling = false; });
 });
 </script>
 </body>

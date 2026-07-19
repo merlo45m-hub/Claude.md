@@ -60,6 +60,10 @@ async def main() -> None:
         initial_capital=args.capital or config.trading.initial_capital,
         position_size_pct=config.trading.position_size_pct,
         max_open_positions=config.trading.max_open_positions,
+        atr_multiplier=config.trading.atr_multiplier,
+        reward_ratio=config.trading.reward_ratio,
+        stop_loss_pct=config.trading.stop_loss_pct,
+        take_profit_pct=config.trading.take_profit_pct,
     )
 
     bt = Backtester(trading_cfg, strat_obj, fee_pct=args.fee)
