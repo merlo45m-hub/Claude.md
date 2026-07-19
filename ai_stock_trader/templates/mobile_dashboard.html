@@ -21,6 +21,11 @@ if('serviceWorker' in navigator){
     --mono:'SF Mono','Cascadia Code','JetBrains Mono',ui-monospace,monospace;
     --font:-apple-system,BlinkMacSystemFont,"SF Pro","Segoe UI",Roboto,sans-serif;
   }
+  html[data-theme="light"]{
+    --bg:#f4f6fb; --surface:#ffffff; --surface2:#eef1f7; --border:#e2e8f0; --border2:#cbd5e1;
+    --text:#0f172a; --text2:#475569; --text3:#94a3b8;
+    --green:#00a152; --red:#e11d48; --blue:#2563eb; --gold:#b45309;
+  }
   html,body{ background:var(--bg); }
   body {
     font-family: var(--font);
@@ -122,6 +127,24 @@ if('serviceWorker' in navigator){
   .close-btn:hover { background:rgba(255,59,92,.32); }
   .close-btn:active { transform:scale(.97); }
   .accent-bar { width:3px; align-self:stretch; border-radius:3px; background:#2a2a40; margin-right:2px; }
+  .pos-card{ background:var(--surface2); border:1px solid var(--border); border-radius:12px; margin-bottom:8px; overflow:hidden; }
+  .pos-head{ display:flex; align-items:center; gap:9px; padding:12px; cursor:pointer; }
+  .pos-head .chev{ margin-left:6px; font-size:12px; color:var(--text3); transition:transform .25s; }
+  .pos-card.open .chev{ transform:rotate(180deg); }
+  .pos-detail{ padding:0 12px 12px 43px; font-size:12px; color:var(--text2); }
+  .pos-detail .pd-row{ margin-bottom:5px; }
+  .pos-detail .pd-row b{ color:var(--text); font-weight:700; }
+  .pos-detail .close-btn{ margin-top:8px; }
+  /* command palette */
+  .cmdk{ position:fixed; inset:0; z-index:900; display:none; align-items:flex-start; justify-content:center; padding-top:18vh; background:rgba(5,5,12,.55); backdrop-filter:blur(4px); }
+  .cmdk.open{ display:flex; }
+  .cmdk-box{ width:min(92vw,420px); background:var(--surface); border:1px solid var(--border2); border-radius:16px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  .cmdk-in{ width:100%; border:none; background:transparent; color:var(--text); font-size:16px; padding:16px; outline:none; border-bottom:1px solid var(--border); }
+  .cmdk-list{ max-height:46vh; overflow-y:auto; padding:6px; }
+  .cmdk-item{ padding:11px 14px; border-radius:10px; font-size:14px; color:var(--text2); cursor:pointer; display:flex; align-items:center; gap:10px; }
+  .cmdk-item .k{ margin-left:auto; font-size:11px; color:var(--text3); }
+  .cmdk-item.active, .cmdk-item:hover{ background:var(--surface2); color:var(--text); }
+  html[data-theme="light"] .cmdk{ background:rgba(15,23,42,.3); }
   .wl-row.flash-up{ animation:wlUp .6s ease-out; }
   .wl-row.flash-down{ animation:wlDown .6s ease-out; }
   @keyframes wlUp{ 0%{background:rgba(0,230,118,.14)} 100%{background:transparent} }
@@ -158,6 +181,11 @@ if('serviceWorker' in navigator){
 
   /* ---- sticky bottom nav ---- */
   .botnav{ position:fixed; bottom:0; left:0; right:0; z-index:600; display:flex; background:rgba(13,13,22,.9); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom); }
+  html[data-theme="light"] .botnav{ background:rgba(255,255,255,.9); }
+  html[data-theme="light"] #toast{ color:#0f172a !important; background:rgba(255,255,255,.95) !important; border-color:rgba(0,0,0,.12) !important; }
+  .theme-toggle{ margin-left:auto; width:34px; height:34px; border-radius:50%; border:1px solid var(--border2); background:var(--surface2); color:var(--text); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .3s, background .2s; }
+  .theme-toggle:active{ transform:scale(.9); }
+  html[data-theme="light"] .theme-toggle{ background:#fff7e0; }
   .botnav button{ flex:1; background:none; border:none; color:var(--text3); font-size:11px; font-weight:700; padding:9px 0 11px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; letter-spacing:.02em; transition:color .2s; }
   .botnav button .ic{ font-size:17px; line-height:1; }
   .botnav button.active{ color:var(--blue); }
@@ -177,6 +205,7 @@ if('serviceWorker' in navigator){
     <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
       <h1>AI <span class="accent">Trader</span></h1>
       <span id="status" class="badge"><span class="dot"></span><span id="status-txt">...</span></span>
+      <button class="theme-toggle" id="themeToggle" title="Toggle theme">&#9790;</button>
     </div>
     <canvas id="hdrSpark" height="34" style="width:100%;max-width:200px;margin-top:8px;display:block"></canvas>
   </header>
@@ -283,12 +312,62 @@ if('serviceWorker' in navigator){
   <button data-target="sec-watchlist"><span class="ic">&#128202;</span>Watch</button>
   <button data-target="sec-challenge"><span class="ic">&#127942;</span>Challenge</button>
 </nav>
+<div class="cmdk" id="cmdk">
+  <div class="cmdk-box">
+    <input class="cmdk-in" id="cmdkIn" placeholder="Type a command…  (Esc to close)" autocomplete="off" />
+    <div class="cmdk-list" id="cmdkList"></div>
+  </div>
+</div>
 <script>
 const $ = id => document.getElementById(id.replace(/^#/,''));
 let tickers = [];
 let BRANDS = {};   // symbol -> {logo, colors:[{hex}], title}
 let lastWl = {};   // symbol -> last price (for flash)
 let lastVals = {}; // id -> last numeric value (for count-up flash)
+
+// ---- command palette (Ctrl/Cmd+K) ----
+(function(){
+  const overlay = $('cmdk'), input = $('cmdkIn'), list = $('cmdkList');
+  if(!overlay) return;
+  const cmds = [
+    {label:'Go to Trades', k:'g t', run:()=>jump('sec-trades')},
+    {label:'Go to Positions', k:'g p', run:()=>jump('sec-positions')},
+    {label:'Go to Watchlist', k:'g w', run:()=>jump('sec-watchlist')},
+    {label:'Go to Challenge', k:'g c', run:()=>jump('sec-challenge')},
+    {label:'Refresh data', k:'r', run:()=>refresh()},
+    {label:'Toggle theme', k:'t', run:()=>{ const b=$('themeToggle'); if(b) b.click(); }},
+  ];
+  function jump(id){ const el=$(id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }
+  function render(q){
+    const f = cmds.filter(c => c.label.toLowerCase().includes((q||'').toLowerCase()));
+    list.innerHTML = f.map((c,i)=>`<div class="cmdk-item${i===0?' active':''}" data-i="${i}"><span>${c.label}</span><span class="k">${c.k}</span></div>`).join('') || '<div class="cmdk-item">No matches</div>';
+    list.querySelectorAll('.cmdk-item').forEach(el=>el.onclick=()=>run(+el.dataset.i));
+  }
+  function open(){ overlay.classList.add('open'); render(''); setTimeout(()=>input.focus(),10); }
+  function close(){ overlay.classList.remove('open'); }
+  function run(i){ const c=cmds.filter(x=>x.label.toLowerCase().includes((input.value||'').toLowerCase()))[i]; if(c){ close(); c.run(); } }
+  document.addEventListener('keydown', e=>{
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); overlay.classList.contains('open')?close():open(); }
+    else if(e.key==='Escape' && overlay.classList.contains('open')) close();
+  });
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) close(); });
+  input.addEventListener('input', ()=>render(input.value));
+  input.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ const items=list.querySelectorAll('.cmdk-item[data-i]'); if(items[0]) items[0].click(); }
+  });
+})();
+
+// ---- theme toggle (persisted) ----
+(function(){
+  const root = document.documentElement;
+  const btn = $('themeToggle');
+  const apply = t => { root.setAttribute('data-theme', t); if(btn) btn.innerHTML = t==='light' ? '☀' : '☾'; };
+  try { const saved = localStorage.getItem('theme'); if(saved) apply(saved); } catch(e){}
+  if(btn) btn.addEventListener('click', () => {
+    const next = root.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+    apply(next); try { localStorage.setItem('theme', next); } catch(e){}
+  });
+})();
 
 // ---- cursor / touch glow ----
 (function(){
@@ -502,15 +581,28 @@ async function closePosition(sym, side){
         const tp = p.take_profit!=null ? (p.take_profit*100).toFixed(0)+'%' : '—';
         let held = '';
         try { const ms = Date.now() - new Date(p.opened_at).getTime(); const h = Math.floor(ms/3600000); const m = Math.floor((ms%3600000)/60000); held = (h>0?h+'h ':'')+m+'m'; } catch(e){ held='—'; }
-        return `<div class="wl-row"><div class="accent-bar" style="background:${p.side==='SHORT'?'var(--red)':'var(--green)'}"></div>${logoChip(p.symbol)}<div class="wl-info"><div class="sym">${p.symbol} <span class="tag ${sideCls}">${p.side}</span></div><div class="wl-name">entry $${(p.entry_price||0).toFixed(2)} &middot; now ${price}</div><div class="wl-name">SL ${sl} &middot; TP ${tp} &middot; held ${held}</div></div><div class="wl-price"><div class="p ${pcls}">${pnlStr}</div><button class="close-btn" data-sym="${p.symbol}" data-side="${p.side}">Close</button></div></div>`;
-      }).join('');
-      // wire close buttons (delegated)
-      const posEl = $('positions');
-      if(posEl && !posEl._wired){
-        posEl.addEventListener('click', e=>{ const b = e.target.closest('.close-btn'); if(!b) return; closePosition(b.dataset.sym, b.dataset.side); });
-        posEl._wired = true;
-      }
+        return `<div class="pos-card" data-sym="${p.symbol}">
+          <div class="pos-head" data-sym="${p.symbol}"><div class="accent-bar" style="background:${p.side==='SHORT'?'var(--red)':'var(--green)'}"></div>${logoChip(p.symbol)}<div class="wl-info"><div class="sym">${p.symbol} <span class="tag ${sideCls}">${p.side}</span></div><div class="wl-name">now ${price}</div></div><div class="wl-price"><div class="p ${pcls}">${pnlStr}</div><span class="chev">▾</span></div></div>
+          <div class="pos-detail" id="pd-${p.symbol}" style="display:none">
+            <div class="pd-row">Entry <b>$${(p.entry_price||0).toFixed(2)}</b></div>
+            <div class="pd-row">SL <b>${sl}</b> &middot; TP <b>${tp}</b></div>
+            <div class="pd-row">Held <b>${held}</b></div>
+            <button class="close-btn" data-sym="${p.symbol}" data-side="${p.side}">Close position</button>
+          </div>
+        </div>`;
+    });
     }).catch(()=>{});
+    // wire position cards: collapse + close (delegated)
+    const posEl = $('positions');
+    if(posEl && !posEl._wired){
+      posEl.addEventListener('click', e=>{
+        const cb = e.target.closest('.close-btn');
+        if(cb){ closePosition(cb.dataset.sym, cb.dataset.side); return; }
+        const head = e.target.closest('.pos-head');
+        if(head){ const d = $('pd-'+head.dataset.sym); if(d){ const open = d.style.display!=='none'; d.style.display = open?'none':'block'; head.closest('.pos-card').classList.toggle('open', !open); } }
+      });
+      posEl._wired = true;
+    }
     try {
     const portfolio = s.portfolio || {};
     const total = (portfolio.cash||0) + (portfolio.position||0);
