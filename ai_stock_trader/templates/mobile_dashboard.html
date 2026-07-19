@@ -152,6 +152,14 @@ if('serviceWorker' in navigator){
   /* ---- count-up flash ---- */
   .value.flash{ animation:valFlash .5s ease-out; }
   @keyframes valFlash{ 0%{ filter:brightness(1.6); } 100%{ filter:brightness(1); } }
+
+  /* ---- sticky bottom nav ---- */
+  .botnav{ position:fixed; bottom:0; left:0; right:0; z-index:600; display:flex; background:rgba(13,13,22,.9); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid var(--border); padding-bottom:env(safe-area-inset-bottom); }
+  .botnav button{ flex:1; background:none; border:none; color:var(--text3); font-size:11px; font-weight:700; padding:9px 0 11px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:3px; letter-spacing:.02em; transition:color .2s; }
+  .botnav button .ic{ font-size:17px; line-height:1; }
+  .botnav button.active{ color:var(--blue); }
+  .botnav button:active{ transform:scale(.94); }
+  .wrap{ padding-bottom:64px; }
 </style>
 </head>
 <body>
@@ -163,8 +171,11 @@ if('serviceWorker' in navigator){
 </div>
 <div class="wrap">
   <header>
-    <h1>AI <span class="accent">Trader</span></h1>
-    <span id="status" class="badge"><span class="dot"></span><span id="status-txt">...</span></span>
+    <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+      <h1>AI <span class="accent">Trader</span></h1>
+      <span id="status" class="badge"><span class="dot"></span><span id="status-txt">...</span></span>
+    </div>
+    <canvas id="hdrSpark" height="34" style="width:100%;max-width:200px;margin-top:8px;display:block"></canvas>
   </header>
 
   <div class="uw-banner" id="uw">
@@ -191,7 +202,7 @@ if('serviceWorker' in navigator){
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="sec-trades">
     <div class="sec-title">Recent Trades</div>
     <div id="trades"><div class="skel skel-trade"></div><div class="skel skel-trade"></div><div class="skel skel-trade"></div></div>
   </div>
@@ -212,7 +223,7 @@ if('serviceWorker' in navigator){
     <div style="height:180px;margin-top:6px"><div class="skel skel-bar"></div><canvas id="equityChart" style="display:none"></canvas></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="sec-challenge">
     <div class="sec-title">$100&rarr;$1000 Challenge</div>
     <div class="grid2">
       <div>
@@ -230,7 +241,7 @@ if('serviceWorker' in navigator){
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="sec-watchlist">
     <div class="sec-title">Watchlist <span class="live">live</span></div>
     <div id="watchlist"></div>
   </div>
@@ -258,6 +269,11 @@ if('serviceWorker' in navigator){
 
   <div class="foot"><span class="dot"></span> <span id="updated">loading...</span></div>
 </div>
+<nav class="botnav" id="botnav">
+  <button data-target="sec-trades" class="active"><span class="ic">&#128200;</span>Trades</button>
+  <button data-target="sec-watchlist"><span class="ic">&#128202;</span>Watch</button>
+  <button data-target="sec-challenge"><span class="ic">&#127942;</span>Challenge</button>
+</nav>
 <script>
 const $ = id => document.getElementById(id.replace(/^#/,''));
 let tickers = [];
@@ -303,6 +319,27 @@ let lastVals = {}; // id -> last numeric value (for count-up flash)
     });
   }
   else { window.addEventListener('mousemove', e=>{ move(e.clientX,e.clientY); }); window.addEventListener('mouseenter', ()=>cg.style.opacity=1); }
+})();
+
+// ---- sticky bottom nav: jump + active-on-scroll ----
+(function(){
+  const nav = document.getElementById('botnav');
+  if(!nav) return;
+  const btns = [...nav.querySelectorAll('button')];
+  btns.forEach(b=> b.addEventListener('click', ()=>{
+    const el = document.getElementById(b.dataset.target);
+    if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  }));
+  const targets = btns.map(b=>document.getElementById(b.dataset.target)).filter(Boolean);
+  const obs = new IntersectionObserver(entries=>{
+    entries.forEach(en=>{
+      if(en.isIntersecting){
+        const id = en.target.id;
+        btns.forEach(b=> b.classList.toggle('active', b.dataset.target===id));
+      }
+    });
+  }, {rootMargin:'-40% 0px -55% 0px'});
+  targets.forEach(t=>obs.observe(t));
 })();
 
 // Build a logo chip: real img if available, else colored monogram fallback
@@ -462,6 +499,22 @@ async function refresh(){
       ]},
       options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{enabled:true}}, scales:{x:{grid:{color:'#334155'}, ticks:{color:'#94a3b8',maxTicksLimit:5}}, y:{grid:{color:'#334155'}, ticks:{color:'#94a3b8'}}}}
     });
+    // header mini sparkline (trend at a glance)
+    try {
+      const hc = document.getElementById('hdrSpark');
+      if(hc && values.length){
+        const c = hc.getContext('2d');
+        const W = hc.clientWidth || 200, H = 34;
+        hc.width = W * (window.devicePixelRatio||1); hc.height = H * (window.devicePixelRatio||1);
+        c.setTransform(window.devicePixelRatio||1,0,0,window.devicePixelRatio||1,0,0);
+        c.clearRect(0,0,W,H);
+        const mn = Math.min(...values), mx = Math.max(...values), rng = (mx-mn)||1;
+        const up = values[values.length-1] >= values[0];
+        c.beginPath();
+        values.forEach((v,i)=>{ const x = i/(values.length-1)*W; const y = H - ((v-mn)/rng)*(H-6) - 3; i?c.lineTo(x,y):c.moveTo(x,y); });
+        c.strokeStyle = up ? '#00e676' : '#ff3b5c'; c.lineWidth = 1.6; c.stroke();
+      }
+    } catch(e){}
     if(ch.restarts!=null && ch.failures!=null){
       setVal('v-restarts', ch.restarts, ch.restarts);
       setVal('v-failures', ch.failures, ch.failures);
