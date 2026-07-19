@@ -107,6 +107,9 @@ body:hover .cursor-glow{opacity:1}
 /* animated gradient title text (1) */
 .logo span.grad{background:linear-gradient(90deg,#a855f7,#00d4ff,#00ff9d,#a855f7);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleFlow 6s linear infinite;font-weight:700}
 @keyframes titleFlow{to{background-position:300% 0}}
+/* dot-matrix grid (tier 5.3) */
+.dotgrid{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.25;background-image:radial-gradient(rgba(168,85,247,.18) 1px,transparent 1px);background-size:26px 26px;animation:dotDrift 40s linear infinite}
+@keyframes dotDrift{to{background-position:260px 260px}}
 /* in-card equity sparkline (2) */
 .eq-card-spark{width:100%;height:26px;margin-top:8px;display:block}
 /* boot veil (1) */
@@ -278,6 +281,7 @@ tr:hover td{background:rgba(99,102,241,.04)}
 <body>
 
 <div class="ambient"></div>
+<div class="dotgrid"></div>
 <div class="cursor-glow" id="cursorGlow"></div>
 <div class="boot-veil" id="bootVeil">
   <svg class="bv-logo" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#a855f7" stroke-width="2" stroke-linejoin="round"/></svg>
@@ -661,6 +665,7 @@ async function loadAllocation() {
 
 // ====== Stats ======
 let _lastEquity = null;
+let _statPrev = {};
 async function loadStats() {
   try {
     const res = await fetch('/api/summary');
@@ -672,34 +677,34 @@ async function loadStats() {
     document.getElementById('statsGrid').innerHTML = `
       <div class="stat-card">
         <div class="stat-label">Portfolio</div>
-        <div class="stat-value ${d.total_pnl >= 0 ? 'stat-green' : 'stat-red'}" id="statEquity">${fmt$(d.equity)}</div>
+        <div class="stat-value ${d.total_pnl >= 0 ? 'stat-green' : 'stat-red'}" id="statEquity" data-raw="${d.equity}">${fmt$(d.equity)}</div>
         <div class="stat-sub ${d.total_return_pct >= 0 ? 'stat-green' : 'stat-red'}">${fmtPct(d.total_return_pct)} all time</div>
         <div class="eq-mini-bar"><i id="eqBar" style="width:${Math.max(0,Math.min(100,(d.equity/1000)*100))}%"></i></div>
         <canvas class="eq-card-spark" id="eqCardSpark" width="220" height="26"></canvas>
       </div>
       <div class="stat-card">
         <div class="stat-label">Cash</div>
-        <div class="stat-value stat-blue">${fmt$(d.cash)}</div>
+        <div class="stat-value stat-blue" id="statCash" data-raw="${d.cash}">${fmt$(d.cash)}</div>
         <div class="stat-sub">${d.open_positions} open positions</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Total PnL</div>
-        <div class="stat-value ${d.total_pnl >= 0 ? 'stat-green' : 'stat-red'}">${fmt$(d.total_pnl)}</div>
+        <div class="stat-value ${d.total_pnl >= 0 ? 'stat-green' : 'stat-red'}" id="statPnl" data-raw="${d.total_pnl}">${fmt$(d.total_pnl)}</div>
         <div class="stat-sub">Realized: ${fmt$(d.realized_pnl)}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Win Rate</div>
-        <div class="stat-value stat-gold">${d.win_rate}%</div>
+        <div class="stat-value stat-gold" id="statWin" data-raw="${d.win_rate}">${d.win_rate}%</div>
         <div class="stat-sub">${d.trade_count} total trades</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Unrealized PnL</div>
-        <div class="stat-value ${(d.unrealized_pnl || 0) >= 0 ? 'stat-green' : 'stat-red'}">${fmt$(d.unrealized_pnl || 0)}</div>
+        <div class="stat-value ${(d.unrealized_pnl || 0) >= 0 ? 'stat-green' : 'stat-red'}" id="statUnreal" data-raw="${d.unrealized_pnl || 0}">${fmt$(d.unrealized_pnl || 0)}</div>
         <div class="stat-sub">${d.open_positions} active positions</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Initial Capital</div>
-        <div class="stat-value stat-blue">${fmt$(d.initial_capital)}</div>
+        <div class="stat-value stat-blue" id="statInit" data-raw="${d.initial_capital}">${fmt$(d.initial_capital)}</div>
         <div class="stat-sub">Scale-in: OFF</div>
       </div>
     `;
@@ -718,6 +723,17 @@ async function loadStats() {
       }
     }
     _lastEquity = d.equity;
+    // count-up on all stat values (tier 5.1)
+    ['statCash','statPnl','statWin','statUnreal','statInit'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const to = parseFloat(el.dataset.raw || '0');
+      const from = _statPrev[id];
+      if (from !== undefined && from !== to) {
+        _countUp(el, to, v => (id === 'statWin' ? v.toFixed(2) + '%' : fmt$(v)));
+      }
+      _statPrev[id] = to;
+    });
     // in-card equity sparkline (2) — draw recent equity history
     const ec = document.getElementById('eqCardSpark');
     if (ec) {
