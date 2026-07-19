@@ -30,6 +30,9 @@
       section h2.text-blue-400{ position:relative; }
       section h2.text-blue-400::after{ content:""; position:absolute; left:0; bottom:-4px; width:0; height:2px; border-radius:2px; background:linear-gradient(90deg,var(--blue),var(--green)); transition:width .5s; }
       section h2.text-blue-400:hover::after{ width:100%; }
+      /* sticky section nav active state */
+      .nav-tab.active{ background:rgba(59,130,246,.18); color:#fff; box-shadow:0 0 0 1px rgba(59,130,246,.4); }
+      html{ scroll-behavior:smooth; }
     </style>
 </head>
 <body class="bg-slate-950 text-gray-100 min-h-screen flex flex-col">
@@ -51,6 +54,13 @@
                 </div>
             </div>
         </header>
+
+        <nav class="sticky top-0 z-30 mb-4 flex space-x-1 bg-gray-900/90 backdrop-blur border-b border-gray-700 px-1 py-2 text-sm">
+            <button data-target="sec-equity" class="nav-tab px-3 py-1 rounded text-gray-300 hover:text-white transition-colors">Equity</button>
+            <button data-target="sec-trades" class="nav-tab px-3 py-1 rounded text-gray-300 hover:text-white transition-colors">Trades</button>
+            <button data-target="sec-positions" class="nav-tab px-3 py-1 rounded text-gray-300 hover:text-white transition-colors">Positions</button>
+            <button data-target="sec-decisions" class="nav-tab px-3 py-1 rounded text-gray-300 hover:text-white transition-colors">Decisions</button>
+        </nav>
 
         <div id="statusBadge" class="mb-4 px-3 py-1 rounded text-sm font-medium inline-block status-running">
             RUNNING
@@ -98,7 +108,7 @@
             </div>
         </div>
 
-        <section class="mb-6 bg-gray-800 rounded-lg p-4">
+        <section id="sec-equity" class="mb-6 bg-gray-800 rounded-lg p-4">
             <div class="flex justify-between items-start mb-3">
                 <h2 class="text-lg font-semibold text-blue-400">Equity Curve</h2>
                 <div class="flex space-x-2">
@@ -116,7 +126,7 @@
             </div>
         </section>
 
-        <section class="mb-6 bg-gray-800 rounded-lg p-4">
+        <section id="sec-trades" class="mb-6 bg-gray-800 rounded-lg p-4">
             <div class="flex justify-between items-start mb-3">
                 <h2 class="text-lg font-semibold text-blue-400">Recent Trades</h2>
                 <button id="exportTrades" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
@@ -145,7 +155,7 @@
             </div>
         </section>
 
-        <section class="mb-6 bg-gray-800 rounded-lg p-4">
+        <section id="sec-positions" class="mb-6 bg-gray-800 rounded-lg p-4">
             <div class="flex justify-between items-start mb-3">
                 <h2 class="text-lg font-semibold text-blue-400">Open Positions</h2>
                 <span id="positionsCount" class="text-xs text-gray-400">--</span>
@@ -169,7 +179,7 @@
             </div>
         </section>
 
-        <section class="mb-6 bg-gray-800 rounded-lg p-4">
+        <section id="sec-decisions" class="mb-6 bg-gray-800 rounded-lg p-4">
             <div class="flex justify-between items-start mb-3">
                 <h2 class="text-lg font-semibold text-blue-400">Recent Decisions</h2>
                 <button id="refreshDecisions" class="px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600">⟳ Refresh</button>
@@ -588,6 +598,26 @@
             });
             configSubmit.addEventListener('click', updateConfig);
             refreshBtn.addEventListener('click', loadStats);
+
+            // sticky section nav: click-to-scroll + scroll-spy
+            const navTabs = document.querySelectorAll('.nav-tab');
+            const secMap = {};
+            navTabs.forEach(btn => {
+                const id = btn.dataset.target;
+                secMap[id] = document.getElementById(id);
+                btn.addEventListener('click', () => secMap[id] && secMap[id].scrollIntoView({behavior:'smooth', block:'start'}));
+            });
+            if('IntersectionObserver' in window){
+                const spy = new IntersectionObserver(es => {
+                    es.forEach(en => {
+                        if(en.isIntersecting){
+                            navTabs.forEach(b => b.classList.toggle('active', b.dataset.target === en.target.id));
+                        }
+                    });
+                }, {rootMargin:'-45% 0px -50% 0px', threshold:0});
+                Object.values(secMap).forEach(s => s && spy.observe(s));
+                if(navTabs[0]) navTabs[0].classList.add('active');
+            }
             exportTradesBtn.addEventListener('click', async () => {
                             try {
                                 const resp = await fetch('/api/trades?limit=100');
