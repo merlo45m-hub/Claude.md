@@ -124,6 +124,16 @@ body:hover .cursor-glow{opacity:1}
 /* new-trade comet edge (3) */
 .trade-new.comet{box-shadow:inset 3px 0 0 var(--green),0 0 18px rgba(0,255,157,.25);animation:cometFade 1.6s ease-out}
 @keyframes cometFade{0%{box-shadow:inset 4px 0 0 var(--green),0 0 26px rgba(0,255,157,.5)}100%{box-shadow:inset 0 0 0 transparent,0 0 0 transparent}}
+/* trade row direction tint (tier 6.1) */
+tr.buy td:first-child{box-shadow:inset 3px 0 0 rgba(0,255,157,.55)}
+tr.sell td:first-child{box-shadow:inset 3px 0 0 rgba(255,59,111,.55)}
+/* status dot pulse (tier 6.2) */
+.status-dot.on{animation:dotBreathe 2s ease-in-out infinite}
+@keyframes dotBreathe{0%,100%{box-shadow:0 0 0 0 rgba(0,255,157,.5)}50%{box-shadow:0 0 0 5px rgba(0,255,157,0)}}
+/* panel title gradient underline (tier 6.3) */
+.panel-title{position:relative}
+.panel-title::after{content:"";position:absolute;left:0;bottom:-4px;height:2px;width:100%;background:linear-gradient(90deg,var(--accent),var(--green),transparent);background-size:200% 100%;animation:titleUnder 4s linear infinite}
+@keyframes titleUnder{to{background-position:200% 0}}
 .panel-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
 .panel-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)}
 .panel-controls{display:flex;align-items:center;gap:8px;font-size:12px}
@@ -823,7 +833,7 @@ async function loadTrades() {
       const isNew = hasNew && t.id > _lastTradeId;
       if (isNew) _tradeBlip(t.side);
       _tradeMap[t.id] = t;
-      return `<tr class="${isNew ? 'trade-new comet' : ''}" style="cursor:pointer" onclick="openReplay(${t.id})">
+      return `<tr class="${t.side} ${isNew ? 'trade-new comet' : ''}" style="cursor:pointer" onclick="openReplay(${t.id})">
         <td style="color:var(--text2)">${t.id}</td>
         <td>${t.symbol}</td>
         <td><span class="badge ${badge}">${t.side}</span></td>
