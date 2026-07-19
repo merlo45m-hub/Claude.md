@@ -38,13 +38,16 @@
         <header class="mb-6">
             <div class="flex justify-between items-center flex-wrap">
                 <h1 class="text-2xl font-bold text-blue-400">🤖 AI Stock Trading Bot</h1>
-                <div class="flex space-x-2 flex-wrap">
-                    <button id="configBtn" class="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors">
-                        ⚙️ Config
-                    </button>
-                    <button id="refreshBtn" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors">
-                        🔄 Refresh
-                    </button>
+                <div class="flex items-center space-x-3 flex-wrap">
+                    <canvas id="hdrSpark" height="36" class="hidden md:block" style="width:160px"></canvas>
+                    <div class="flex space-x-2 flex-wrap">
+                        <button id="configBtn" class="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors">
+                            ⚙️ Config
+                        </button>
+                        <button id="refreshBtn" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors">
+                            🔄 Refresh
+                        </button>
+                    </div>
                 </div>
             </div>
         </header>
@@ -144,6 +147,30 @@
 
         <section class="mb-6 bg-gray-800 rounded-lg p-4">
             <div class="flex justify-between items-start mb-3">
+                <h2 class="text-lg font-semibold text-blue-400">Open Positions</h2>
+                <span id="positionsCount" class="text-xs text-gray-400">--</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full bg-gray-800 border border-gray-700 rounded-lg overflow-hidden text-sm">
+                    <thead class="bg-gray-700 text-white">
+                        <tr class="text-left">
+                            <th class="px-3 py-2">Symbol</th>
+                            <th class="px-3 py-2">Side</th>
+                            <th class="px-3 py-2">Entry</th>
+                            <th class="px-3 py-2">Now</th>
+                            <th class="px-3 py-2">Size</th>
+                            <th class="px-3 py-2">Unrealized P&L</th>
+                        </tr>
+                    </thead>
+                    <tbody id="positions-body" class="bg-gray-800 divide-y divide-gray-700">
+                        <tr class="text-center text-gray-400"><td colspan="6" class="px-3 py-4">Loading positions...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="mb-6 bg-gray-800 rounded-lg p-4">
+            <div class="flex justify-between items-start mb-3">
                 <h2 class="text-lg font-semibold text-blue-400">Recent Decisions</h2>
                 <button id="refreshDecisions" class="px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600">⟳ Refresh</button>
             </div>
@@ -229,15 +256,17 @@
 
         async function loadStats() {
             try {
-                const [statusResp, tradesResp, equityResp] = await Promise.all([
+                const [statusResp, tradesResp, equityResp, positionsResp] = await Promise.all([
                     fetch('/api/status'),
                     fetch('/api/trades?limit=50'),
-                    fetch('/api/equity')
+                    fetch('/api/equity'),
+                    fetch('/api/positions')
                 ]);
-                const [statusData, tradesData, equityData] = await Promise.all([
+                const [statusData, tradesData, equityData, positionsData] = await Promise.all([
                     statusResp.json(), 
                     tradesResp.json(), 
-                    equityResp.json()
+                    equityResp.json(),
+                    positionsResp.json().catch(()=>({positions:[]}))
                 ]);
                 
                 updateStatusBadge(statusData.status || 'UNKNOWN');
@@ -293,6 +322,8 @@
                 
                 updateEquityChart(equityData.equity || []);
                 updateTradesTable(trades);
+                updatePositionsTable(positionsData.positions || []);
+                drawHdrSpark(equityData.equity || []);
                 loadRecentDecisions();
                 
             } catch (error) {
@@ -331,6 +362,42 @@
                 const pnlSign = pnlVal >= 0 ? '+' : '';
                 return `<tr class="hover:bg-gray-700"><td class="px-3 py-2 text-xs">${time}</td><td class="px-3 py-2 text-xs"><span class="px-2 py-0.5 rounded text-xs ${actionClass}">${actionText}</span></td><td class="px-3 py-2 text-xs font-mono">${trade.symbol || ''}</td><td class="px-3 py-2 text-xs text-right">$${(trade.price || 0).toFixed(2)}</td><td class="px-3 py-2 text-xs text-right">${(trade.size || 0).toFixed(4)}</td><td class="px-3 py-2 text-xs text-right">$${((trade.price || 0) * (trade.size || 0)).toFixed(2)}</td><td class="px-3 py-2 text-xs text-right ${pnlColor}">${pnlSign}$${Math.abs(pnlVal).toFixed(2)}</td></tr>`;
             }).join('');
+        }
+
+        function updatePositionsTable(positions) {
+            const el = document.getElementById('positions-body');
+            const cnt = document.getElementById('positionsCount');
+            if(!el) return;
+            cnt.textContent = positions.length ? `${positions.length} open` : '0 open';
+            if(!positions || !positions.length){
+                el.innerHTML = '<tr class="text-center text-gray-400"><td colspan="6" class="px-3 py-4">No open positions</td></tr>';
+                return;
+            }
+            el.innerHTML = positions.map(p => {
+                const pnl = p.pnl, pnlPct = p.pnl_pct;
+                const pcls = pnl==null ? 'text-gray-400' : (pnl>=0 ? 'text-green-400' : 'text-red-400');
+                const psign = pnl==null ? '' : (pnl>=0 ? '+' : '');
+                const sideCls = p.side==='SHORT' ? 'bg-red-600/20 text-red-400' : 'bg-blue-600/20 text-blue-400';
+                const price = p.price!=null ? `$${(p.price).toFixed(2)}` : '--';
+                const pnlStr = pnl!=null ? `${psign}$${(Math.abs(pnl)).toFixed(2)} (${psign?(pnlPct||0).toFixed(2):(pnlPct||0).toFixed(2)}%)` : '—';
+                return `<tr class="hover:bg-gray-700"><td class="px-3 py-2 text-xs font-mono">${p.symbol||''}</td><td class="px-3 py-2 text-xs"><span class="px-2 py-0.5 rounded text-xs ${sideCls}">${p.side||''}</span></td><td class="px-3 py-2 text-xs text-right">$${((p.entry_price)||0).toFixed(2)}</td><td class="px-3 py-2 text-xs text-right">${price}</td><td class="px-3 py-2 text-xs text-right">${(p.size||0).toFixed(4)}</td><td class="px-3 py-2 text-xs text-right ${pcls}">${pnlStr}</td></tr>`;
+            }).join('');
+        }
+
+        function drawHdrSpark(equityData) {
+            const c = document.getElementById('hdrSpark');
+            if(!c || !equityData || !equityData.length) return;
+            const vals = equityData.slice(-40).map(p => p.value);
+            const W = c.clientWidth || 160, H = 36;
+            c.width = W * (window.devicePixelRatio||1); c.height = H * (window.devicePixelRatio||1);
+            const ctx = c.getContext('2d');
+            ctx.setTransform(window.devicePixelRatio||1,0,0,window.devicePixelRatio||1,0,0);
+            ctx.clearRect(0,0,W,H);
+            const mn = Math.min(...vals), mx = Math.max(...vals), rng = (mx-mn)||1;
+            const up = vals[vals.length-1] >= vals[0];
+            ctx.beginPath();
+            vals.forEach((v,i)=>{ const x = i/(vals.length-1)*W; const y = H - ((v-mn)/rng)*(H-6) - 3; i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+            ctx.strokeStyle = up ? '#00e676' : '#ff3b5c'; ctx.lineWidth = 1.6; ctx.stroke();
         }
 
         function updateEquityChart(equityData) {
