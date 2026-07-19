@@ -477,6 +477,66 @@ def get_watchlist():
     except Exception as e:
         return jsonify({'watchlist': [], 'error': str(e)})
 
+@app.route('/api/positions')
+def get_positions():
+    """Get currently open positions with live unrealized P&L.
+
+    Reads the positions table and enriches each row with the current
+    market price (yfinance) to compute unrealized P&L vs entry.
+    Degrades gracefully: if price fetch fails, pnl is null.
+    """
+    import yfinance as yf
+    conn = get_db()
+    rows = conn.execute(
+        'SELECT symbol, side, entry_price, size, stop_loss, take_profit, opened_at FROM positions'
+    ).fetchall()
+    conn.close()
+    if not rows:
+        return jsonify({'positions': []})
+    symbols = [r['symbol'] for r in rows]
+    prices = {}
+    try:
+        tickers = yf.Tickers(' '.join(symbols))
+        for sym in symbols:
+            try:
+                t = tickers.tickers.get(sym)
+                if t and t.info:
+                    p = t.info.get('currentPrice') or t.info.get('regularMarketPrice') or t.info.get('previousClose')
+                    prices[sym] = round(p, 2) if p else None
+            except Exception:
+                prices[sym] = None
+    except Exception:
+        pass
+    out = []
+    for r in rows:
+        sym = r['symbol']
+        price = prices.get(sym)
+        entry = r['entry_price'] or 0
+        size = r['size'] or 0
+        # direction: SHORT profits when price < entry
+        if price is not None and entry:
+            if r['side'] == 'SHORT':
+                pnl = (entry - price) * size
+            else:
+                pnl = (price - entry) * size
+            pnl_pct = (pnl / (entry * size) * 100) if (entry * size) else 0
+        else:
+            pnl = None
+            pnl_pct = None
+        out.append({
+            'symbol': sym,
+            'side': r['side'],
+            'entry_price': round(entry, 2),
+            'size': size,
+            'stop_loss': r['stop_loss'],
+            'take_profit': r['take_profit'],
+            'opened_at': r['opened_at'],
+            'price': price,
+            'pnl': round(pnl, 2) if pnl is not None else None,
+            'pnl_pct': round(pnl_pct, 2) if pnl_pct is not None else None,
+        })
+    return jsonify({'positions': out})
+
 def start_background_thread():
     thread = threading.Thread(target=background_thread)
     thread.daemon = True
