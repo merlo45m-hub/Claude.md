@@ -468,7 +468,11 @@ async function refresh(){
         const sideCls = p.side==='SHORT' ? 'SHORT' : 'LONG';
         const price = p.price!=null ? '$'+p.price.toFixed(2) : '--';
         const pnlStr = pnl!=null ? psign+'$'+Math.abs(pnl).toFixed(2)+' ('+psign+(pnlPct||0).toFixed(1)+'%)' : '—';
-        return `<div class="wl-row"><div class="accent-bar" style="background:${p.side==='SHORT'?'var(--red)':'var(--green)'}"></div>${logoChip(p.symbol)}<div class="wl-info"><div class="sym">${p.symbol} <span class="tag ${sideCls}">${p.side}</span></div><div class="wl-name">entry $${(p.entry_price||0).toFixed(2)} &middot; now ${price}</div></div><div class="wl-price"><div class="p ${pcls}">${pnlStr}</div></div></div>`;
+        const sl = p.stop_loss!=null ? (p.stop_loss*100).toFixed(0)+'%' : '—';
+        const tp = p.take_profit!=null ? (p.take_profit*100).toFixed(0)+'%' : '—';
+        let held = '';
+        try { const ms = Date.now() - new Date(p.opened_at).getTime(); const h = Math.floor(ms/3600000); const m = Math.floor((ms%3600000)/60000); held = (h>0?h+'h ':'')+m+'m'; } catch(e){ held='—'; }
+        return `<div class="wl-row"><div class="accent-bar" style="background:${p.side==='SHORT'?'var(--red)':'var(--green)'}"></div>${logoChip(p.symbol)}<div class="wl-info"><div class="sym">${p.symbol} <span class="tag ${sideCls}">${p.side}</span></div><div class="wl-name">entry $${(p.entry_price||0).toFixed(2)} &middot; now ${price}</div><div class="wl-name">SL ${sl} &middot; TP ${tp} &middot; held ${held}</div></div><div class="wl-price"><div class="p ${pcls}">${pnlStr}</div></div></div>`;
       }).join('');
     }).catch(()=>{});
     try {
@@ -494,13 +498,22 @@ async function refresh(){
     setVal('v-winrate', (a.win_rate||0) + '%', a.win_rate);
     setVal('v-pairs', (a.total_pairs||0), a.total_pairs);
     const trades = t && t.trades ? t.trades : (Array.isArray(t)?t:[]);
-    $('trades').innerHTML = trades.slice(0,15).map(trade => {
+    $('trades').innerHTML = trades.slice(0,15).map((trade,i) => {
       const ts = trade.time ? trade.time.replace('T',' ').slice(0,16) : '';
       const pnlVal = trade.pnl||0;
       const pnlSign = pnlVal>=0?'+':''; const pnlColor = pnlVal>=0?'pos':'neg';
       const edge = (trade.action==='EXIT LONG'||trade.action==='SELL'||trade.action==='EXIT SHORT') ? (pnlVal>=0?' edge-up':' edge-down') : '';
-      return `<div class="trade${edge}"><div style="display:flex;align-items:center;gap:9px">${logoChip(trade.symbol||'?')}<div><span class="sym">${trade.symbol||'?'}</span><span class="tag ${trade.action}">${trade.action}</span></div></div><div class="meta">${ts}<br><b class="${pnlColor}">${pnlSign}$${Math.abs(pnlVal).toFixed(2)}</b></div></div>`;
+      const px = trade.price!=null ? '$'+(trade.price).toFixed(2) : '--';
+      const sz = trade.size!=null ? (trade.size).toFixed(4) : '--';
+      const val = (trade.price!=null && trade.size!=null) ? '$'+(trade.price*trade.size).toFixed(2) : '--';
+      return `<div class="trade${edge}" data-i="${i}" style="cursor:pointer"><div style="display:flex;align-items:center;gap:9px">${logoChip(trade.symbol||'?')}<div><span class="sym">${trade.symbol||'?'}</span><span class="tag ${trade.action}">${trade.action}</span></div></div><div class="meta">${ts}<br><b class="${pnlColor}">${pnlSign}$${Math.abs(pnlVal).toFixed(2)}</b></div></div><div class="trade-detail" id="td-${i}" style="display:none;padding:6px 0 2px 43px;font-size:11px;color:var(--text3)">price ${px} &middot; size ${sz} &middot; value ${val}</div>`;
     }).join('');
+    // tap to expand/collapse trade detail
+    const tEl = $('trades');
+    if(tEl && !tEl._wired){
+      tEl.addEventListener('click', e=>{ const row = e.target.closest('.trade'); if(!row) return; const d = $('td-'+row.dataset.i); if(d) d.style.display = d.style.display==='none'?'block':'none'; });
+      tEl._wired = true;
+    }
     const eqData = a.equity_history || [];
     const labels = eqData.slice(-12).map(e => e.time ? e.time.slice(11,16) : '');
     const values = eqData.slice(-12).map(e => e.value||0);
