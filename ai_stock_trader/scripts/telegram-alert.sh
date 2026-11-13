@@ -1,10 +1,11 @@
 #!/bin/bash
-# Send alert message via Telegram bot
-# Uses overseer's telegram_token from profile config
+# Send alert message via Telegram bot.
+# The token lives in ~/.hermes/.env (TELEGRAM_BOT_TOKEN) — never hardcode it.
 set -euo pipefail
 
-TOKEN="8635156326:AAF3TjbCOijbvMnzwRlIJYmbZRguidZS5PE"
-CHAT_ID="8382253048"
+[ -f "$HOME/.hermes/.env" ] && . "$HOME/.hermes/.env"
+TOKEN="${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN not set}"
+CHAT_ID="${TELEGRAM_CHAT_ID:-8382253048}"
 LEVEL="${1:-INFO}"
 MSG="${2:-No message}"
 

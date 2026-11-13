@@ -87,3 +87,13 @@ snap/
 # Backups
 last30days-v3.3.2-backup/
 backups/
+
+# Secrets — never commit
+.env
+*.env
+*.key
+*.pem
+*.keystore
+*.p12
+token.txt
+.hermes/.env
